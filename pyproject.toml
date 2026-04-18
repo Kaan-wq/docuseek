@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "RAG benchmarking platform for ML framework documentation"
 readme = "README.md"
 requires-python = ">=3.12"
-authors = [{ name = "Your Name", email = "your@email.com" }]
+authors = [{ name = "Kaan Uçar", email = "kaanucar9@gmail.com" }]
 license = { text = "MIT" }
 
 dependencies = [
