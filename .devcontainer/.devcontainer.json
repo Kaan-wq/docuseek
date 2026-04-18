@@ -1,0 +1,54 @@
+{
+  "name": "DocuSeek — RAG benchmarking",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "forwardPorts": [8000, 8501, 6333, 3000],
+  "portsAttributes": {
+    "8000": { "label": "FastAPI", "onAutoForward": "notify" },
+    "8501": { "label": "Streamlit", "onAutoForward": "openPreview" },
+    "6333": { "label": "Qdrant", "onAutoForward": "silent" },
+    "3000": { "label": "Langfuse", "onAutoForward": "silent" }
+  },
+  "mounts": [
+    "source=docuseek-uv-cache,target=/home/vscode/.cache/uv,type=volume",
+    "source=docuseek-hf-cache,target=/home/vscode/.cache/huggingface,type=volume"
+  ],
+  "postCreateCommand": "pip install uv && uv sync --all-groups && uv run pre-commit install",
+  "remoteEnv": {
+    "UV_LINK_MODE": "copy",
+    "TOKENIZERS_PARALLELISM": "false",
+    "HF_HUB_ENABLE_HF_TRANSFER": "1",
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-toolsai.jupyter",
+        "charliermarsh.ruff",
+        "tamasfe.even-better-toml",
+        "redhat.vscode-yaml",
+        "ms-python.debugpy",
+        "ms-azuretools.vscode-docker",
+        "eamodio.gitlens"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+          "source.fixAll.ruff": "explicit",
+          "source.organizeImports.ruff": "explicit"
+        },
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff"
+        },
+        "ruff.nativeServer": "on",
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.testing.pytestEnabled": true,
+        "python.testing.unittestEnabled": false
+      }
+    }
+  }
+}
