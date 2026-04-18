@@ -14,36 +14,29 @@ dependencies = [
     "structlog>=24.4",
     "typer>=0.15",
     "pyyaml>=6.0",
-
     # api + frontend
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
     "streamlit>=1.40",
     "httpx>=0.28",
-
     # retrieval
     "qdrant-client>=1.12",
     "bm25s>=0.2",
     "rank-bm25>=0.2",
-
     # embeddings + models
     "sentence-transformers>=3.3",
     "transformers>=4.46",
     "torch>=2.5",
     "ragatouille>=0.0.9",
-
     # generation
     "mistralai>=1.2",
     "openai>=1.57",                   # for LLM-as-judge against Claude/GPT
-
     # eval
     "ragas>=0.2",
     "datasets>=3.1",
     "scikit-learn>=1.5",
-
     # observability
     "langfuse>=2.54",
-
     # utilities
     "tenacity>=9.0",
     "rich>=13.9",
