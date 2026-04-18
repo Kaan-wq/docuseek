@@ -113,7 +113,7 @@ class HuggingFaceScraper(BaseScraper):
             url=url,
             title=url.rsplit("/", maxsplit=1)[-1],  # crude title extraction from URL
             content=content,
-            source=library,
+            source=f"huggingface/{library}",
             metadata={
                 "path": url.rsplit(f"/{docs_path}/", maxsplit=1)[-1],
                 "library": library,
