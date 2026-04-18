@@ -1,5 +1,6 @@
 import httpx
 import structlog
+from tqdm import tqdm
 
 from docuseek.config import settings
 from docuseek.ingestion.scrapers.base import BaseScraper, RawDocument
@@ -7,23 +8,24 @@ from docuseek.ingestion.scrapers.base import BaseScraper, RawDocument
 logger = structlog.get_logger()
 
 
-HEADERS = {"Authorization": f"Bearer {settings.huggingface_api_key}"}
+HEADERS = {"Authorization": f"Bearer {settings.github_token}"}
 
 
-LIBRARIES = [
-    "transformers",
-    "datasets",
-    "peft",
-    "tokenizers",
-    "accelerate",
-]
+LIBRARIES: dict[str, str] = {
+    "transformers": "docs/source/en",
+    "diffusers": "docs/source/en",
+    "datasets": "docs/source",
+    "peft": "docs/source",
+    "tokenizers": "docs/source",
+    "accelerate": "docs/source",
+}
 
 
 class HuggingFaceScraper(BaseScraper):
-    def __init__(self, libraries: list[str] = LIBRARIES) -> None:
+    def __init__(self, libraries: dict[str, str] = LIBRARIES) -> None:
         """
         Args:
-            libraries: which HF libraries to scrape
+            libraries: mapping of library name to its docs path on GitHub
         """
         self.libraries = libraries
 
@@ -33,10 +35,14 @@ class HuggingFaceScraper(BaseScraper):
         Calls _scrape_library for each and flattens results.
         """
         all_docs = []
-        for library in self.libraries:
+        # limit size of bar to quarter of screen
+        for library in tqdm(
+            self.libraries, desc="Scraping libraries", unit="lib", maxinterval=0.5, ncols=80
+        ):
             try:
                 docs = self._scrape_library(library)
                 all_docs.extend(docs)
+                tqdm.write(f"  {library}: {len(docs)} documents")
             except Exception as e:
                 logger.warning("scraping_failed", library=library, error=str(e))
         return all_docs
@@ -52,7 +58,8 @@ class HuggingFaceScraper(BaseScraper):
         Returns:
             list of RawDocument, one per .md or .mdx file found
         """
-        base_url = f"https://api.github.com/repos/huggingface/{library}/contents/docs/source/en"
+        docs_path = self.libraries[library]
+        base_url = f"https://api.github.com/repos/huggingface/{library}/contents/{docs_path}"
         return self._scrape_directory(base_url, library)
 
     def _scrape_directory(self, url: str, library: str) -> list[RawDocument]:
