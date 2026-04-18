@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     # Hugging Face
     huggingface_api_key: str
 
+    # GitHub
+    github_token: str
+
     # Mistral
     mistral_api_key: str
     mistral_model: str = "mistral-small-latest"
