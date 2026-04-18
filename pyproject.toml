@@ -1,0 +1,126 @@
+[project]
+name = "docuseek"
+version = "0.1.0"
+description = "RAG benchmarking platform for ML framework documentation"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [{ name = "Your Name", email = "your@email.com" }]
+license = { text = "MIT" }
+
+dependencies = [
+    # core
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "structlog>=24.4",
+    "typer>=0.15",
+    "pyyaml>=6.0",
+
+    # api + frontend
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "streamlit>=1.40",
+    "httpx>=0.28",
+
+    # retrieval
+    "qdrant-client>=1.12",
+    "bm25s>=0.2",
+    "rank-bm25>=0.2",
+
+    # embeddings + models
+    "sentence-transformers>=3.3",
+    "transformers>=4.46",
+    "torch>=2.5",
+    "ragatouille>=0.0.9",
+
+    # generation
+    "mistralai>=1.2",
+    "openai>=1.57",                   # for LLM-as-judge against Claude/GPT
+
+    # eval
+    "ragas>=0.2",
+    "datasets>=3.1",
+    "scikit-learn>=1.5",
+
+    # observability
+    "langfuse>=2.54",
+
+    # utilities
+    "tenacity>=9.0",
+    "rich>=13.9",
+    "tqdm>=4.67",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.8",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
+    "mypy>=1.13",
+    "ipykernel>=6.29",
+    "pre-commit>=4.0",
+]
+
+# IMPORTANT: this is an application repo, not a library
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["notebooks/*", "data/*"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "N",    # pep8-naming
+    "C4",   # flake8-comprehensions
+    "PIE",  # flake8-pie (misc lints)
+    "RUF",  # ruff-specific rules
+    "PL",   # pylint (subset)
+    "TRY",  # tryceratops (exception handling)
+    "LOG",  # flake8-logging
+    "PT",   # flake8-pytest-style
+]
+ignore = [
+    "E501",     # line too long (handled by formatter)
+    "B008",     # function call in default arg (typer/fastapi)
+    "PLR0913",  # too many arguments (common in ML code)
+    "PLR2004",  # magic value comparison (common in tests)
+    "TRY003",   # long exception messages are fine
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "PLR2004"]
+"scripts/*" = ["T201"]
+"experiments/*" = ["T201"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true         # format code blocks inside docstrings
+
+[tool.ruff.lint.isort]
+known-first-party = ["docuseek"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --cov=docuseek --cov-report=term-missing"
+asyncio_mode = "auto"
+markers = [
+    "integration: requires running services (qdrant, langfuse)",
+    "slow: takes more than 5 seconds",
+    "gpu: requires a GPU",
+]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+disallow_untyped_decorators = false   # transformers/fastapi decorators
