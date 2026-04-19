@@ -5,8 +5,6 @@ Shared data structures and Protocol for all chunking strategies.
 
 Every chunker in this package implements the BaseChunker Protocol,
 meaning it exposes a single `chunk(doc) -> list[Chunk]` method.
-The Protocol approach keeps chunkers loosely coupled — the pipeline
-only depends on the interface, not on any concrete class.
 """
 
 import hashlib
