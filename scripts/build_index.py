@@ -70,7 +70,15 @@ def build_index(
         collection_name: Qdrant collection to upsert into.
         force_rebuild:   Drop and recreate the collection if it already exists.
     """
-    client = QdrantClient(url=f"http://{settings.qdrant_host}:{settings.qdrant_port}")
+
+    if settings.qdrant_cluster_endpoint:
+        client = QdrantClient(
+            url=settings.qdrant_cluster_endpoint,
+            api_key=settings.qdrant_api_key,
+        )
+    else:
+        client = QdrantClient(url=f"http://{settings.qdrant_host}:{settings.qdrant_port}")
+
     dense_embedder = DenseEmbedder()
     bm25_embedding_model = SparseTextEmbedding("Qdrant/bm25")
     chunker = CHUNKERS[chunker_name]()
@@ -190,7 +198,7 @@ def _upsert_batch(
         vector: dict = {
             settings.dense_embd_model_name: dense_vector,
             "bm25": sparse_vector.as_object(),
-            # TODO: settings.late_interaction_embd_model_name: late_interaction_vector
+            # TODO: settings.late_interaction_embd_model_name.split("/")[-1]: late_interaction_vector
         }
         points.append(
             PointStruct(
