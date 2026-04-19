@@ -51,7 +51,7 @@ CHUNKERS: dict[str, type[BaseChunker]] = {
     "markdown": MarkdownHeaderChunker,
 }
 
-UPSERT_BATCH_SIZE = 128
+UPSERT_BATCH_SIZE = 256
 
 
 def build_index(
@@ -113,8 +113,7 @@ def build_index(
             with_vectors=False,
         )
         existing_ids = {point.id for point in existing}
-        new_chunks = [c for c in batch if c.chunk_id not in existing_ids]
-        logger.info("batch_skip", skipped=len(batch) - len(new_chunks), new=len(new_chunks))
+        new_chunks = [c for c in batch if str(c.chunk_id) not in existing_ids]
         if not new_chunks:
             continue
         # ──────────────────────────────────────────
@@ -221,7 +220,7 @@ def _upsert_batch(
         }
         points.append(
             PointStruct(
-                id=chunk.chunk_id,
+                id=str(chunk.chunk_id),
                 vector=vector,
                 payload=dataclasses.asdict(chunk),
             )
