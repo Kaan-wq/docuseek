@@ -63,7 +63,7 @@ class DenseEmbedder:
         vectors: np.ndarray = self._model.encode(
             texts,
             batch_size=self._batch_size,
-            show_progress_bar=True,
+            show_progress_bar=False,
             convert_to_numpy=True,
         )
         return vectors.tolist()
