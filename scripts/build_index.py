@@ -40,6 +40,7 @@ from docuseek.chunking.recursive import RecursiveChunker
 from docuseek.config import settings
 from docuseek.embedding.dense import DenseEmbedder
 from docuseek.ingestion.pipeline import load_jsonl
+from docuseek.logging import configure_logging
 
 logger = structlog.get_logger()
 console = Console()
@@ -50,7 +51,7 @@ CHUNKERS: dict[str, type[BaseChunker]] = {
     "markdown": MarkdownHeaderChunker,
 }
 
-UPSERT_BATCH_SIZE = 100
+UPSERT_BATCH_SIZE = 128
 
 
 def build_index(
@@ -93,11 +94,11 @@ def build_index(
 
     # ── 1. Load clean docs from disk ──────────────────────────────────────────
     docs = load_jsonl(Path("data/processed/huggingface.jsonl"))  # TODO: add others when implemented
-    console.print(f"  Loaded {len(docs)} documents")
+    logger.info("docs_loaded", source="huggingface", count=len(docs))
 
     # ── 2. Chunk ──────────────────────────────────────────────────────────────
     all_chunks = [chunk for doc in docs for chunk in chunker.chunk(doc)]
-    console.print(f"  {len(docs)} docs → {len(all_chunks)} chunks")
+    logger.info("chunks_produced", count=len(all_chunks), chunker=chunker_name)
 
     # ── 3. Embed + upsert in batches ──────────────────────────────────────────
     for i in track(range(0, len(all_chunks), UPSERT_BATCH_SIZE), description="Embedding"):
@@ -114,7 +115,9 @@ def build_index(
             # TODO late_interaction_vectors=late_interaction_embeddings,
         )
 
-    logger.info("index_built", collection=collection_name, chunker=chunker_name)
+    logger.info(
+        "index_built", collection=collection_name, chunker=chunker_name, chunks=len(all_chunks)
+    )
 
 
 def _setup_collection(
@@ -229,6 +232,7 @@ def parse_args() -> argparse.Namespace:
 
 
 if __name__ == "__main__":
+    configure_logging(log_level="info")
     args = parse_args()
     try:
         build_index(chunker_name=args.chunker, force_rebuild=args.force)
