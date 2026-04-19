@@ -30,7 +30,6 @@ from rich.table import Table
 from docuseek.ingestion.pipeline import SCRAPERS, run_ingestion
 from docuseek.logging import configure_logging
 
-configure_logging(log_level="info")
 logger = structlog.get_logger()
 console = Console()
 
@@ -99,4 +98,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    configure_logging(log_level="info")
     main()
