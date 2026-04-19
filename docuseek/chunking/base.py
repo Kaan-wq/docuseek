@@ -8,6 +8,7 @@ meaning it exposes a single `chunk(doc) -> list[Chunk]` method.
 """
 
 import hashlib
+import uuid
 from dataclasses import dataclass, field
 from typing import Protocol
 
@@ -44,7 +45,7 @@ class Chunk:
     chunk_id: str = field(init=False)
 
     def __post_init__(self) -> None:
-        self.chunk_id = hashlib.md5(self.content.encode()).hexdigest()[:12]
+        self.chunk_id = uuid.UUID(hashlib.md5(self.content.encode()).hexdigest())
 
 
 class BaseChunker(Protocol):
