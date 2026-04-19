@@ -30,9 +30,13 @@ class Settings(BaseSettings):
     langfuse_secret_key: str
     langfuse_host: str = "https://cloud.langfuse.com"
 
-    # Embedding
-    embedding_model_name: str = "microsoft/harrier-oss-v1-0.6b"
-    embedding_dimension: int = 1024
+    # Dense Embedding
+    dense_embd_model_name: str = "microsoft/harrier-oss-v1-0.6b"
+    dense_embd_dim: int = 1024
+
+    # Late Interaction Embedding
+    late_interaction_embd_model_name: str = "jinaai/jina-colbert-v2"
+    late_interaction_embd_dim: int = 64
 
     # Chunking
     chunk_size: int = 500
