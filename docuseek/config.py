@@ -9,9 +9,9 @@ class Settings(BaseSettings):
     )
 
     # Qdrant
-    qdrant_host: str
+    qdrant_host: str = "localhost"
     qdrant_port: int = 6333
-    qdrant_collection_name: str
+    qdrant_collection_name: str = "docuseek"
     qdrant_api_key: str | None = None
     qdrant_cluster_endpoint: str | None = None
 
