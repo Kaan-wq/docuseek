@@ -103,6 +103,22 @@ def build_index(
     # ── 3. Embed + upsert in batches ──────────────────────────────────────────
     for i in track(range(0, len(all_chunks), UPSERT_BATCH_SIZE), description="Embedding"):
         batch = all_chunks[i : i + UPSERT_BATCH_SIZE]
+
+        # ── skip already indexed chunks ───────────
+        batch_ids = [chunk.chunk_id for chunk in batch]
+        existing = client.retrieve(
+            collection_name=collection_name,
+            ids=batch_ids,
+            with_payload=False,
+            with_vectors=False,
+        )
+        existing_ids = {point.id for point in existing}
+        new_chunks = [c for c in batch if c.chunk_id not in existing_ids]
+        logger.info("batch_skip", skipped=len(batch) - len(new_chunks), new=len(new_chunks))
+        if not new_chunks:
+            continue
+        # ──────────────────────────────────────────
+
         dense_embeddings = dense_embedder.embed_documents([c.content for c in batch])
         sparse_embeddings = list(bm25_embedding_model.embed([c.content for c in batch]))
         # TODO late_interaction_embeddings = late_interaction_embedder.embed_documents([c.content for c in batch])
