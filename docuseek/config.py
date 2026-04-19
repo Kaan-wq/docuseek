@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     qdrant_cluster_endpoint: str | None = None
 
     # Hugging Face
-    huggingface_api_key: str
+    hf_token: str
 
     # GitHub
     github_token: str
