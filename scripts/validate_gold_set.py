@@ -49,11 +49,11 @@ def validate(path: Path) -> tuple[list[GoldQuestion], list[tuple[int, str]]]:
 
     with path.open("r", encoding="utf-8") as f:
         for line_no, line in enumerate(f, start=1):
-            line = line.strip()
-            if not line:
+            stripped_line = line.strip()
+            if not stripped_line:
                 continue
             try:
-                data = json.loads(line)
+                data = json.loads(stripped_line)
                 valid.append(GoldQuestion(**data))
             except json.JSONDecodeError as e:
                 errors.append((line_no, f"invalid JSON: {e.msg}"))
