@@ -83,7 +83,7 @@ def run_benchmark(
 
     for question in questions:
         chunks = retriever.retrieve(question.question, top_k=k)
-        retrieved_urls = [chunk.doc_url for chunk in chunks]
+        retrieved_urls = list(dict.fromkeys(chunk.doc_url for chunk in chunks))
 
         scores = compute_all(
             retrieved_urls=retrieved_urls,
@@ -95,7 +95,7 @@ def run_benchmark(
         per_difficulty[question.difficulty].append(scores)
 
     # ── Aggregate ─────────────────────────────────────────────────────────────
-    aggregate = _aggregate(all_scores, prefix="")
+    aggregate = _aggregate(all_scores)
     by_library = {lib: _aggregate(scores) for lib, scores in per_library.items()}
     by_difficulty = {diff: _aggregate(scores) for diff, scores in per_difficulty.items()}
 
