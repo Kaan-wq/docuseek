@@ -15,7 +15,7 @@ separator (newline by default) and then merges pieces up to chunk_size.
 
 from langchain_text_splitters import CharacterTextSplitter
 
-from docuseek.chunking.base import BaseChunker, Chunk
+from docuseek.chunking.base import Chunk
 from docuseek.config import settings
 from docuseek.ingestion.cleaners import CleanDocument
 
@@ -70,6 +70,3 @@ class FixedSizeChunker:
             )
             for i, text in enumerate(texts)
         ]
-
-
-_: BaseChunker = FixedSizeChunker()

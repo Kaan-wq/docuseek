@@ -20,7 +20,7 @@ because it avoids cutting inside paragraphs or sentences when possible.
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from docuseek.chunking.base import BaseChunker, Chunk
+from docuseek.chunking.base import Chunk
 from docuseek.config import settings
 from docuseek.ingestion.cleaners import CleanDocument
 
@@ -88,6 +88,3 @@ class RecursiveChunker:
             )
             for i, text in enumerate(texts)
         ]
-
-
-_: BaseChunker = RecursiveChunker()

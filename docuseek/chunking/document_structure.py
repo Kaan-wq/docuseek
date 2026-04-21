@@ -29,7 +29,7 @@ from langchain_text_splitters import (
     RecursiveCharacterTextSplitter,
 )
 
-from docuseek.chunking.base import BaseChunker, Chunk
+from docuseek.chunking.base import Chunk
 from docuseek.config import settings
 from docuseek.ingestion.cleaners import CleanDocument
 
@@ -123,6 +123,3 @@ class MarkdownHeaderChunker:
             )
             for i, lc_doc in enumerate(sized_docs)
         ]
-
-
-_: BaseChunker = MarkdownHeaderChunker()

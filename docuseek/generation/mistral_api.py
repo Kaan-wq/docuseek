@@ -8,7 +8,6 @@ from mistralai import Mistral
 
 from docuseek.chunking.base import Chunk
 from docuseek.config import settings
-from docuseek.generation.base import BaseGenerator
 
 _SYSTEM_PROMPT = """\
 You are a precise technical assistant specialising in ML framework documentation.
@@ -71,6 +70,3 @@ class MistralGenerator:
         ]
         response = self._client.chat.complete(model=self._model, messages=messages)
         return response.choices[0].message.content
-
-
-_: BaseGenerator = MistralGenerator()

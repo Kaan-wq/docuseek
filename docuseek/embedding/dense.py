@@ -86,6 +86,3 @@ class DenseEmbedder(BaseEmbedder):
             convert_to_numpy=True,
         )
         return vectors.tolist()
-
-
-_: BaseEmbedder = DenseEmbedder()
