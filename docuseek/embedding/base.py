@@ -12,10 +12,11 @@ embed_query() is provided as a default convenience wrapper and should
 not be overridden.
 """
 
-from typing import Protocol
+from abc import ABC, abstractmethod
 
 
-class BaseEmbedder(Protocol):
+class BaseEmbedder(ABC):
+    @abstractmethod
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         """
         Encode a batch of document chunks into dense vectors.
@@ -29,6 +30,7 @@ class BaseEmbedder(Protocol):
         """
         ...
 
+    @abstractmethod
     def embed_queries(self, queries: list[str]) -> list[list[float]]:
         """
         Encode a batch of query strings into dense vectors.

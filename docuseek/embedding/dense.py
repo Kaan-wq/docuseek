@@ -25,7 +25,7 @@ from docuseek.embedding.base import BaseEmbedder
 _DEFAULT_INSTRUCTION = "Retrieve semantically similar text"
 
 
-class DenseEmbedder:
+class DenseEmbedder(BaseEmbedder):
     """
     Sentence-transformer embedder with asymmetric query/document encoding.
 
