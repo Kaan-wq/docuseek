@@ -90,7 +90,9 @@ def build_index(
     logger.info("docs_loaded", source="huggingface", count=len(docs))
 
     # ── 2. Chunk ──────────────────────────────────────────────────────────────
-    all_chunks = [chunk for doc in docs for chunk in chunker.chunk(doc)]
+    all_chunks: list[Chunk] = []
+    for doc in track(docs, description="Chunking"):
+        all_chunks.extend(chunker.chunk(doc))
     logger.info("chunks_produced", count=len(all_chunks), chunker=config.chunker.algorithm)
 
     # ── 3. Embed + upsert in batches ──────────────────────────────────────────
