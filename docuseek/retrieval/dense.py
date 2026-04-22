@@ -12,6 +12,15 @@ from docuseek.embedding.dense import DenseEmbedder
 
 
 class DenseRetriever:
+    """
+    Retrieves chunks using dense vector search via Qdrant.
+
+    Attributes:
+        _client:          Connected QdrantClient instance.
+        _collection_name: Qdrant collection to query.
+        _embedder:        DenseEmbedder dense embedding model for query encoding.
+    """
+
     def __init__(
         self,
         embedder: DenseEmbedder,
