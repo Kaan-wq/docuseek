@@ -9,15 +9,15 @@ force_rebuild=False will skip re-indexing if the collection already exists.
 
 Usage
 -----
-# Build with defaults (fixed chunker, dense embedder)
-uv run python scripts/build_index.py
+    # Build using a specific experiment config
+    uv run python scripts/build_index.py --config experiments/00_baseline/config.yaml
 
-# Force a full rebuild even if the collection exists
-uv run python scripts/build_index.py --force
+    # Force a full rebuild even if the collection already exists
+    uv run python scripts/build_index.py --config experiments/00_baseline/config.yaml --force
 
-# Choose a specific chunker
-uv run python scripts/build_index.py --chunker recursive
-uv run python scripts/build_index.py --chunker markdown
+The index must be built with the same experiment config that will be used for
+benchmarking — the chunker algorithm and parameters directly affect what is
+stored in Qdrant, and therefore what retrieval metrics measure.
 """
 
 import argparse
@@ -33,29 +33,22 @@ from qdrant_client.models import Distance, Modifier, PointStruct, SparseVectorPa
 from rich.console import Console
 from rich.progress import track
 
-from docuseek.chunking.base import BaseChunker, Chunk
-from docuseek.chunking.document_structure import MarkdownHeaderChunker
-from docuseek.chunking.fixed import FixedSizeChunker
-from docuseek.chunking.recursive import RecursiveChunker
+from docuseek.chunking.base import Chunk
+from docuseek.chunking.factory import get_chunker
 from docuseek.config import settings
 from docuseek.embedding.dense import DenseEmbedder
+from docuseek.experiment_config import ExperimentConfig
 from docuseek.ingestion.pipeline import load_jsonl
 from docuseek.logging import configure_logging
 
 logger = structlog.get_logger()
 console = Console()
 
-CHUNKERS: dict[str, type[BaseChunker]] = {
-    "fixed": FixedSizeChunker,
-    "recursive": RecursiveChunker,
-    "markdown": MarkdownHeaderChunker,
-}
-
 UPSERT_BATCH_SIZE = 256
 
 
 def build_index(
-    chunker_name: str = "fixed",
+    config: ExperimentConfig,
     collection_name: str = settings.qdrant_collection_name,
     force_rebuild: bool = False,
 ) -> None:
@@ -67,7 +60,7 @@ def build_index(
     if it does not exist. If force_rebuild=True, drops and recreates it.
 
     Args:
-        chunker_name:    Which chunker to use. One of: fixed, recursive, markdown.
+        config:          Experiment config. Chunker algo and params read from config.chunker.
         collection_name: Qdrant collection to upsert into.
         force_rebuild:   Drop and recreate the collection if it already exists.
     """
@@ -82,7 +75,7 @@ def build_index(
 
     dense_embedder = DenseEmbedder()
     bm25_embedding_model = SparseTextEmbedding("Qdrant/bm25")
-    chunker = CHUNKERS[chunker_name]()
+    chunker = get_chunker(config.chunker)
 
     _setup_collection(
         client=client,
@@ -98,7 +91,7 @@ def build_index(
 
     # ── 2. Chunk ──────────────────────────────────────────────────────────────
     all_chunks = [chunk for doc in docs for chunk in chunker.chunk(doc)]
-    logger.info("chunks_produced", count=len(all_chunks), chunker=chunker_name)
+    logger.info("chunks_produced", count=len(all_chunks), chunker=config.chunker.algorithm)
 
     # ── 3. Embed + upsert in batches ──────────────────────────────────────────
     for i in track(range(0, len(all_chunks), UPSERT_BATCH_SIZE), description="Embedding"):
@@ -118,8 +111,8 @@ def build_index(
             continue
         # ──────────────────────────────────────────
 
-        dense_embeddings = dense_embedder.embed_documents([c.content for c in batch])
-        sparse_embeddings = list(bm25_embedding_model.embed([c.content for c in batch]))
+        dense_embeddings = dense_embedder.embed_documents([c.content for c in new_chunks])
+        sparse_embeddings = list(bm25_embedding_model.embed([c.content for c in new_chunks]))
         # TODO late_interaction_embeddings = late_interaction_embedder.embed_documents([c.content for c in batch])
         _upsert_batch(
             client=client,
@@ -131,7 +124,10 @@ def build_index(
         )
 
     logger.info(
-        "index_built", collection=collection_name, chunker=chunker_name, chunks=len(all_chunks)
+        "index_built",
+        collection=collection_name,
+        chunker=config.chunker.algorithm,
+        chunks=len(all_chunks),
     )
 
 
@@ -232,10 +228,11 @@ def _upsert_batch(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build the DocuSeek Qdrant index.")
     parser.add_argument(
-        "--chunker",
-        choices=list(CHUNKERS.keys()),
-        default="fixed",
-        help="Chunking strategy to use. Default: fixed.",
+        "--config",
+        type=Path,
+        required=True,
+        metavar="PATH",
+        help="Path to the experiment config YAML.",
     )
     parser.add_argument(
         "--force",
@@ -250,7 +247,8 @@ if __name__ == "__main__":
     configure_logging(log_level="info")
     args = parse_args()
     try:
-        build_index(chunker_name=args.chunker, force_rebuild=args.force)
+        config = ExperimentConfig.from_yaml(args.config)
+        build_index(config=config, force_rebuild=args.force)
     except Exception:
         logger.exception("build_index_failed")
         sys.exit(1)
