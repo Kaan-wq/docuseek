@@ -76,10 +76,10 @@ def _build_chunker(config: ChunkerConfig) -> BaseChunker:
                 window_size=config.window_size,
             )
         case "agentic":
-            # TODO implement AgenticChunker
             return AgenticChunker(
-                window_size=config.window_size,
+                min_chunk_size=config.min_chunk_size,
                 max_chunk_size=config.chunk_size,
+                window_size=config.window_size,
             )
         case _:
             raise ValueError(

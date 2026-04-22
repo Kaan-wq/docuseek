@@ -1,12 +1,23 @@
 """
+docuseek/chunking/agentic.py
+-----------------------------
 Agentic chunker: delegates boundary decisions to an LLM.
 
-The LLM reads a sliding window of the document and decides whether
-the current position represents a meaningful topic boundary. Use
-only when benchmarking justifies the cost over semantic chunking.
+Uses chonkie's SlumberChunker backed by a Gemini genie to identify
+meaningful topic boundaries. The LLM receives a sliding character window
+over the document and decides whether the centre of that window represents
+a boundary worth splitting on.
+
+Significantly more expensive than semantic chunking — incurs one LLM call
+per candidate boundary. Only benchmark this after semantic chunking results
+justify the cost.
 """
 
+from chonkie import SlumberChunker
+from chonkie.genie import GeminiGenie
+
 from docuseek.chunking.base import Chunk
+from docuseek.config import settings
 from docuseek.ingestion.cleaners import CleanDocument
 
 
@@ -14,21 +25,60 @@ class AgenticChunker:
     """
     Uses an LLM to identify topic boundaries in a document.
 
+    Wraps chonkie's SlumberChunker with a GeminiGenie backend.
+
     Attributes:
-        _model:       Model identifier, fixed in settings.
-        _window_size: Number of sentences visible to the LLM at each step.
-        _max_size:    Hard ceiling — forces a split regardless of LLM output.
+        _chunker: Underlying chonkie.SlumberChunker instance.
     """
 
     def __init__(
         self,
-        window_size: int = 5,
+        min_chunk_size: int = 100,
         max_chunk_size: int = 500,
-    ) -> None: ...
+        window_size: int = 128,
+    ) -> None:
+        """
+        Args:
+            min_chunk_size: Minimum number of characters per chunk.
+                            Guards against degenerate splits on short
+                            transitional sentences.
+            max_chunk_size: Hard character ceiling. Forces a split
+                            regardless of LLM output when exceeded.
+            window_size:    Number of tokens in the candidate window
+                            passed to the LLM at each boundary decision.
+                            Larger values give the model more context but
+                            increase token cost per call.
+        """
 
-    def chunk(self, doc: CleanDocument) -> list[Chunk]: ...
+        self._chunker = SlumberChunker(
+            genie=GeminiGenie(model=settings.gemini_model, api_key=settings.gemini_api_key),
+            tokenizer="gpt2",
+            chunk_size=max_chunk_size,
+            candidate_size=window_size,
+            min_characters_per_chunk=min_chunk_size,
+        )
 
-    def _is_boundary(self, window: str) -> bool:
-        """Ask the LLM whether the centre of this window is a topic boundary."""
+    def chunk(self, doc: CleanDocument) -> list[Chunk]:
+        """
+        Split a CleanDocument into agentically coherent chunks.
 
-    def _build_prompt(self, window: str) -> str: ...
+        Args:
+            doc: Cleaned document from the ingestion pipeline.
+
+        Returns:
+            List of Chunk objects in document order.
+        """
+
+        chunks = self._chunker.chunk(doc.content)
+        return [
+            Chunk(
+                content=chunk.text,
+                doc_url=doc.url,
+                doc_title=doc.title,
+                source=doc.source,
+                chunk_index=i,
+                chunk_total=len(chunks),
+                metadata={**doc.metadata},
+            )
+            for i, chunk in enumerate(chunks)
+        ]
