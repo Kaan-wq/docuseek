@@ -1,12 +1,16 @@
 """
+docuseek/chunking/semantic.py
+------------------------------
 Semantic chunker: splits on meaning shifts rather than character count.
 
-Strategy: embed each sentence, compute cosine similarity between adjacent
-sentences, insert a boundary where similarity drops below a threshold.
+Delegates to chonkie's SemanticChunker, which embeds each sentence,
+computes cosine similarity between adjacent sentences within a sliding
+window, and inserts a boundary where similarity drops below a threshold.
 """
 
+import chonkie
+
 from docuseek.chunking.base import Chunk
-from docuseek.embedding.base import BaseEmbedder
 from docuseek.ingestion.cleaners import CleanDocument
 
 
@@ -15,23 +19,68 @@ class SemanticChunker:
     Splits a document at points where semantic similarity between
     adjacent sentences drops below a threshold.
 
+    Wraps chonkie.SemanticChunker, which handles sentence splitting,
+    embedding, and similarity computation internally.
+
     Attributes:
-        _embedder:  Embedder used to encode sentences.
-        _threshold: Cosine similarity below which a boundary is inserted.
-        _min_size:  Minimum chunk character length before a boundary is allowed.
-        _max_size:  Hard ceiling — forces a split regardless of similarity.
+        _chunker: Underlying chonkie.SemanticChunker instance.
     """
 
     def __init__(
         self,
-        embedder: BaseEmbedder,
-        threshold: float = 0.5,
+        embedder: str,
+        threshold: float = 0.75,
         min_chunk_size: int = 100,
         max_chunk_size: int = 500,
-    ) -> None: ...
+        window_size: int = 5,
+    ) -> None:
+        """
+        Args:
+            embedder:       sentence-transformers model name used for
+                            sentence similarity. Should match the dense
+                            embedder used for indexing so representations
+                            are consistent.
+            threshold:      Cosine similarity below which a boundary is
+                            inserted. Lower values produce larger chunks;
+                            higher values split more aggressively.
+            min_chunk_size: Minimum number of characters per sentence
+                            before a boundary is considered. Guards against
+                            very short chunks from isolated heading lines.
+            max_chunk_size: Hard character ceiling. Forces a split
+                            regardless of similarity when exceeded.
+            window_size:    Number of adjacent sentences considered when
+                            computing similarity at each candidate boundary.
+        """
 
-    def chunk(self, doc: CleanDocument) -> list[Chunk]: ...
+        self._chunker = chonkie.SemanticChunker(
+            embedding_model=embedder,
+            threshold=threshold,
+            chunk_size=max_chunk_size,
+            min_characters_per_sentence=min_chunk_size,
+            similarity_window=window_size,
+        )
 
-    def _split_into_sentences(self, text: str) -> list[str]: ...
+    def chunk(self, doc: CleanDocument) -> list[Chunk]:
+        """
+        Split a CleanDocument into semantically coherent chunks.
 
-    def _cosine_similarity(self, a: list[float], b: list[float]) -> float: ...
+        Args:
+            doc: Cleaned document from the ingestion pipeline.
+
+        Returns:
+            List of Chunk objects in document order.
+        """
+
+        chunks = self._chunker.chunk(doc.content)
+        return [
+            Chunk(
+                content=chunk.text,
+                doc_url=doc.url,
+                doc_title=doc.title,
+                source=doc.source,
+                chunk_index=i,
+                chunk_total=len(chunks),
+                metadata={**doc.metadata},
+            )
+            for i, chunk in enumerate(chunks)
+        ]

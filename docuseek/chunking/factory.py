@@ -26,6 +26,7 @@ from docuseek.chunking.document_structure import MarkdownHeaderChunker
 from docuseek.chunking.fixed import FixedSizeChunker
 from docuseek.chunking.recursive import RecursiveChunker
 from docuseek.chunking.semantic import SemanticChunker
+from docuseek.config import settings
 from docuseek.experiment_config import ChunkerConfig
 
 
@@ -67,10 +68,11 @@ def _build_chunker(config: ChunkerConfig) -> BaseChunker:
             )
         case "semantic":
             return SemanticChunker(
-                embedder=None,  # from settings
-                threshold=None,  # from experiment_config
-                min_chunk_size=None,  # from experiment_config
+                embedder=settings.dense_embd_model_name,
+                threshold=config.threshold,
+                min_chunk_size=config.min_chunk_size,
                 max_chunk_size=config.chunk_size,
+                window_size=config.window_size,
             )
         case "agentic":
             return AgenticChunker(
