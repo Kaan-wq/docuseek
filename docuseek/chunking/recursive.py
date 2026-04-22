@@ -21,7 +21,6 @@ because it avoids cutting inside paragraphs or sentences when possible.
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from docuseek.chunking.base import Chunk
-from docuseek.config import settings
 from docuseek.ingestion.cleaners import CleanDocument
 
 _SEPARATORS: list[str] = [
@@ -51,8 +50,8 @@ class RecursiveChunker:
 
     def __init__(
         self,
-        chunk_size: int = settings.chunk_size,
-        overlap: int = settings.chunk_overlap,
+        chunk_size: int = 500,
+        overlap: int = 50,
     ) -> None:
         """
         Args:

@@ -30,7 +30,6 @@ from langchain_text_splitters import (
 )
 
 from docuseek.chunking.base import Chunk
-from docuseek.config import settings
 from docuseek.ingestion.cleaners import CleanDocument
 
 _HEADERS_TO_SPLIT_ON: list[tuple[str, str]] = [
@@ -72,8 +71,8 @@ class MarkdownHeaderChunker:
 
     def __init__(
         self,
-        chunk_size: int = settings.chunk_size,
-        overlap: int = settings.chunk_overlap,
+        chunk_size: int = 500,
+        overlap: int = 50,
     ) -> None:
         """
         Args:

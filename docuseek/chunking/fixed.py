@@ -16,7 +16,6 @@ separator (newline by default) and then merges pieces up to chunk_size.
 from langchain_text_splitters import CharacterTextSplitter
 
 from docuseek.chunking.base import Chunk
-from docuseek.config import settings
 from docuseek.ingestion.cleaners import CleanDocument
 
 
@@ -30,8 +29,8 @@ class FixedSizeChunker:
 
     def __init__(
         self,
-        chunk_size: int = settings.chunk_size,
-        overlap: int = settings.chunk_overlap,
+        chunk_size: int = 500,
+        overlap: int = 50,
     ) -> None:
         """
         Args:
