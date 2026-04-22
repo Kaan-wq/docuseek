@@ -38,10 +38,6 @@ class Settings(BaseSettings):
     late_interaction_embd_model_name: str = "jinaai/jina-colbert-v2"
     late_interaction_embd_dim: int = 64
 
-    # Chunking
-    chunk_size: int = 500
-    chunk_overlap: int = 50
-
     # Retrieval
     retrieval_top_k: int = 15
 
