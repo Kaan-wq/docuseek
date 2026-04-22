@@ -1,0 +1,41 @@
+# experiments/00_baseline/config.yaml
+# ------------------------------------
+# Fixed chunker, dense-only retrieval, no reranking, no query strategies,
+# no prompt engineering. All technique flags are explicitly set to false.
+
+name: baseline
+description: >
+  Dense-only RAG with fixed-size chunking. No reranking, no query rewriting,
+  no prompt engineering. Records v0 numbers against gold_set_v1.jsonl.
+
+chunker:
+  algorithm: fixed
+  chunk_size: 500
+  chunk_overlap: 50
+  context_aware: false
+
+retriever:
+  mode: dense
+  rrf_k: 60
+  top_k_candidates: 100
+  top_k_final: 10
+
+reranker:
+  enabled: false
+  method: "colbert"
+  top_k: 10
+
+query:
+  hyde: false
+  multi_query: false
+  ner: false
+
+generation:
+  cot: false
+  few_shot: false
+  budget_forcing: false
+
+eval:
+  gold_set_path: data/eval/gold_set_v1.jsonl
+  k_primary: 10
+  k_recall: 100
