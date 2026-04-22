@@ -1,0 +1,120 @@
+{
+  "experiment": "01_chunking/fixed",
+  "description": "Records fixed-sized chunking numbers against gold_set_v1.jsonl.\n",
+  "timestamp": "2026-04-22T14:23:21.792806+00:00",
+  "config": {
+    "name": "01_chunking/fixed",
+    "description": "Records fixed-sized chunking numbers against gold_set_v1.jsonl.\n",
+    "chunker": {
+      "algorithm": "fixed",
+      "chunk_size": 500,
+      "chunk_overlap": 50,
+      "context_aware": false,
+      "threshold": 0.75,
+      "min_chunk_size": 100,
+      "window_size": 5
+    },
+    "retriever": {
+      "mode": "dense",
+      "rrf_k": 60,
+      "top_k_candidates": 100,
+      "top_k_final": 10
+    },
+    "reranker": {
+      "enabled": false,
+      "method": "colbert",
+      "top_k": 10
+    },
+    "query": {
+      "ner": false,
+      "hyde": false,
+      "multi_query": false
+    },
+    "generation": {
+      "cot": false,
+      "few_shot": false,
+      "budget_forcing": false
+    },
+    "eval": {
+      "gold_set_path": "data/eval/gold_set_v1.jsonl",
+      "k_primary": 10,
+      "k_recall": 100
+    }
+  },
+  "aggregate": {
+    "recall@10": 0.715,
+    "precision@10": 0.075,
+    "mrr": 0.5156834417481823,
+    "map@10": 0.4890436507936508,
+    "ndcg@10": 0.545201956099714,
+    "recall@100": 0.925
+  },
+  "by_library": {
+    "accelerate": {
+      "recall@10": 0.8333333333333334,
+      "precision@10": 0.10000000000000002,
+      "mrr": 0.7238095238095238,
+      "map@10": 0.6238095238095238,
+      "ndcg@10": 0.6972797064780146,
+      "recall@100": 0.9166666666666666
+    },
+    "transformers": {
+      "recall@10": 0.6885245901639344,
+      "precision@10": 0.07213114754098361,
+      "mrr": 0.5005786645390375,
+      "map@10": 0.47571558678116055,
+      "ndcg@10": 0.5280363387206716,
+      "recall@100": 0.9344262295081968
+    },
+    "peft": {
+      "recall@10": 0.8333333333333334,
+      "precision@10": 0.08333333333333333,
+      "mrr": 0.4145833333333333,
+      "map@10": 0.4041666666666666,
+      "ndcg@10": 0.49856375172302636,
+      "recall@100": 0.9166666666666666
+    },
+    "datasets": {
+      "recall@10": 0.8888888888888888,
+      "precision@10": 0.08888888888888889,
+      "mrr": 0.715954415954416,
+      "map@10": 0.7074074074074074,
+      "ndcg@10": 0.7492288882602849,
+      "recall@100": 1.0
+    },
+    "diffusers": {
+      "recall@10": 0.6388888888888888,
+      "precision@10": 0.06666666666666668,
+      "mrr": 0.43106104174944754,
+      "map@10": 0.40839947089947093,
+      "ndcg@10": 0.46621434469231254,
+      "recall@100": 0.8611111111111112
+    }
+  },
+  "by_difficulty": {
+    "easy": {
+      "recall@10": 0.8787878787878788,
+      "precision@10": 0.08787878787878789,
+      "mrr": 0.5501281400490886,
+      "map@10": 0.5451899951899951,
+      "ndcg@10": 0.6206880474450709,
+      "recall@100": 0.9696969696969697
+    },
+    "medium": {
+      "recall@10": 0.7121212121212122,
+      "precision@10": 0.07575757575757576,
+      "mrr": 0.5617935431571796,
+      "map@10": 0.5381673881673882,
+      "ndcg@10": 0.5833133473866895,
+      "recall@100": 0.8939393939393939
+    },
+    "hard": {
+      "recall@10": 0.5588235294117647,
+      "precision@10": 0.061764705882352944,
+      "mrr": 0.43749790085327595,
+      "map@10": 0.3868697478991597,
+      "ndcg@10": 0.4349455758977442,
+      "recall@100": 0.9117647058823529
+    }
+  }
+}
