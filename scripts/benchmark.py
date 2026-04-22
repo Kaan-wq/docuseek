@@ -44,12 +44,11 @@ import structlog
 from rich.console import Console
 from rich.table import Table
 
-from docuseek.embedding.dense import DenseEmbedder
 from docuseek.eval.benchmark import aggregate, load_gold_set
 from docuseek.eval.retrieval_metrics import compute_all, recall_at_k
 from docuseek.experiment_config import ExperimentConfig
 from docuseek.logging import configure_logging
-from docuseek.retrieval.dense import DenseRetriever
+from docuseek.retrieval.factory import get_retriever
 
 logger = structlog.get_logger()
 console = Console()
@@ -87,10 +86,7 @@ def run_benchmark(config: ExperimentConfig) -> dict:
         k_recall=k_r,
     )
 
-    # Build retriever from config
-    # Future: swap based on config.retriever.mode (hybrid, sparse)
-    embedder = DenseEmbedder()
-    retriever = DenseRetriever(embedder=embedder)
+    retriever = get_retriever(config.retriever)
 
     # ── Per-question scoring ─────────────────────────────────────────────────
     all_scores: list[dict[str, float]] = []
