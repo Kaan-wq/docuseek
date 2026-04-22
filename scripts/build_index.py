@@ -117,7 +117,7 @@ def build_index(
         _upsert_batch(
             client=client,
             collection_name=collection_name,
-            chunks=batch,
+            chunks=new_chunks,
             dense_vectors=dense_embeddings,
             sparse_vectors=sparse_embeddings,
             # TODO late_interaction_vectors=late_interaction_embeddings,
