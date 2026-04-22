@@ -1,0 +1,120 @@
+{
+  "experiment": "01_chunking/document_structure",
+  "description": "Records markdown header chunking numbers against gold_set_v1.jsonl.\n",
+  "timestamp": "2026-04-22T16:21:33.389747+00:00",
+  "config": {
+    "name": "01_chunking/document_structure",
+    "description": "Records markdown header chunking numbers against gold_set_v1.jsonl.\n",
+    "chunker": {
+      "algorithm": "markdown",
+      "chunk_size": 500,
+      "chunk_overlap": 50,
+      "context_aware": false,
+      "threshold": 0.75,
+      "min_chunk_size": 100,
+      "window_size": 5
+    },
+    "retriever": {
+      "mode": "dense",
+      "rrf_k": 60,
+      "top_k_candidates": 100,
+      "top_k_final": 10
+    },
+    "reranker": {
+      "enabled": false,
+      "method": "colbert",
+      "top_k": 10
+    },
+    "query": {
+      "ner": false,
+      "hyde": false,
+      "multi_query": false
+    },
+    "generation": {
+      "cot": false,
+      "few_shot": false,
+      "budget_forcing": false
+    },
+    "eval": {
+      "gold_set_path": "data/eval/gold_set_v1.jsonl",
+      "k_primary": 10,
+      "k_recall": 100
+    }
+  },
+  "aggregate": {
+    "recall@10": 0.72,
+    "precision@10": 0.07600000000000001,
+    "mrr": 0.4872111352520207,
+    "map@10": 0.4644087301587302,
+    "ndcg@10": 0.5309289776336129,
+    "recall@100": 0.875
+  },
+  "by_library": {
+    "accelerate": {
+      "recall@10": 0.8333333333333334,
+      "precision@10": 0.10000000000000002,
+      "mrr": 0.7833333333333333,
+      "map@10": 0.725,
+      "ndcg@10": 0.7706750866673063,
+      "recall@100": 0.8333333333333334
+    },
+    "transformers": {
+      "recall@10": 0.7622950819672131,
+      "precision@10": 0.08032786885245902,
+      "mrr": 0.4983067826092517,
+      "map@10": 0.4775240697371845,
+      "ndcg@10": 0.5515803012551481,
+      "recall@100": 0.9098360655737705
+    },
+    "peft": {
+      "recall@10": 0.6666666666666666,
+      "precision@10": 0.06666666666666667,
+      "mrr": 0.28978174603174606,
+      "map@10": 0.27936507936507937,
+      "ndcg@10": 0.37003102342797917,
+      "recall@100": 0.75
+    },
+    "datasets": {
+      "recall@10": 0.7777777777777778,
+      "precision@10": 0.07777777777777778,
+      "mrr": 0.694268077601411,
+      "map@10": 0.6825396825396826,
+      "ndcg@10": 0.7037037037037037,
+      "recall@100": 1.0
+    },
+    "diffusers": {
+      "recall@10": 0.5277777777777778,
+      "precision@10": 0.05555555555555555,
+      "mrr": 0.3131831450796968,
+      "map@10": 0.28571428571428575,
+      "ndcg@10": 0.34827385516067805,
+      "recall@100": 0.75
+    }
+  },
+  "by_difficulty": {
+    "easy": {
+      "recall@10": 0.7575757575757576,
+      "precision@10": 0.07575757575757576,
+      "mrr": 0.4473185035869095,
+      "map@10": 0.4382876382876383,
+      "ndcg@10": 0.5157352626650521,
+      "recall@100": 0.9393939393939394
+    },
+    "medium": {
+      "recall@10": 0.6818181818181818,
+      "precision@10": 0.07272727272727274,
+      "mrr": 0.4947174041031966,
+      "map@10": 0.4775252525252525,
+      "ndcg@10": 0.5307555300097847,
+      "recall@100": 0.8636363636363636
+    },
+    "hard": {
+      "recall@10": 0.7205882352941176,
+      "precision@10": 0.07941176470588236,
+      "mrr": 0.5186449579831933,
+      "map@10": 0.47703081232492994,
+      "ndcg@10": 0.5458441648556375,
+      "recall@100": 0.8235294117647058
+    }
+  }
+}
