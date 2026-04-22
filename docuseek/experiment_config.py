@@ -59,23 +59,26 @@ from pydantic import BaseModel, Field
 class ChunkerConfig(BaseModel):
     """Configuration for the chunking stage.
 
-    <algorithm>     selects the chunking strategy (pick exactly one).
-    <context_aware> prepends surrounding document context to each chunk before embedding.
+    ``algorithm``     selects the chunking strategy (pick exactly one).
+    ``context_aware`` prepends surrounding document context to each chunk before embedding.
     """
 
-    algorithm: Literal["fixed", "recursive", "markdown", "semantic"]
+    algorithm: Literal["agentic", "fixed", "markdown", "recursive", "semantic"]
     chunk_size: int = 500
     chunk_overlap: int = 50
     context_aware: bool = False
+    threshold: float = 0.5  # semantic only
+    min_chunk_size: int = 100  # semantic only
+    window_size: int = 5  # agentic only
 
 
 class RetrieverConfig(BaseModel):
     """Configuration for the retrieval stage.
 
-    <top_k_candidates> is the first-stage pool size (all modes).
-    <top_k_final>      is the number of results returned to the generator,
-                       either directly (no reranker) or after reranking.
-    <rrf_k>            is the RRF constant; only used when ``mode`` is ``hybrid``.
+    ``top_k_candidates`` is the first-stage pool size (all modes).
+    ``top_k_final``      is the number of results returned to the generator,
+                         either directly (no reranker) or after reranking.
+    ``rrf_k``            is the RRF constant; only used when ``mode`` is ``hybrid``.
     """
 
     mode: Literal["dense", "sparse", "hybrid"]
@@ -87,7 +90,7 @@ class RetrieverConfig(BaseModel):
 class RerankerConfig(BaseModel):
     """Configuration for the optional reranking stage.
 
-    The model checkpoint for each method is fixed in <config.py>.
+    The model checkpoint for each method is fixed in ``config.py``.
     This config only controls whether reranking is active and which
     technique is used — not which weights are loaded.
     """
@@ -113,9 +116,9 @@ class QueryConfig(BaseModel):
 class GenerationConfig(BaseModel):
     """Prompt engineering techniques applied at generation time.
 
-    All flags are independent and composable — <cot> and <few_shot> can
+    All flags are independent and composable — ``cot`` and ``few_shot`` can
     both be enabled simultaneously (few-shot CoT is a standard technique).
-    The generator model is fixed in <config.py>.
+    The generator model is fixed in ``config.py``.
     """
 
     cot: bool = False
@@ -141,7 +144,7 @@ class EvalConfig(BaseModel):
 class ExperimentConfig(BaseModel):
     """Full configuration for a single experiment run.
 
-    Instantiate via <from_yaml> rather than directly:
+    Instantiate via ``from_yaml`` rather than directly:
 
         config = ExperimentConfig.from_yaml(Path("experiments/00_baseline/config.yaml"))
     """
@@ -160,14 +163,14 @@ class ExperimentConfig(BaseModel):
         """Load and validate an experiment config from a YAML file.
 
         Args:
-            path: Path to the experiment <config.yaml>.
+            path: Path to the experiment ``config.yaml``.
 
         Returns:
-            Validated <ExperimentConfig> instance.
+            Validated ``ExperimentConfig`` instance.
 
         Raises:
             ValidationError: If the YAML does not match the schema.
-            FileNotFoundError: If <path> does not exist.
+            FileNotFoundError: If ``path`` does not exist.
         """
         return cls.model_validate(yaml.safe_load(path.read_text()))
 
@@ -179,6 +182,6 @@ class ExperimentConfig(BaseModel):
 
         Args:
             path: Destination path, e.g.
-                <experiments/00_baseline/config_resolved.yaml>.
+                ``experiments/00_baseline/config_resolved.yaml``.
         """
         path.write_text(yaml.dump(self.model_dump(), default_flow_style=False))
