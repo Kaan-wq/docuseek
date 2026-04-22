@@ -19,14 +19,25 @@ Usage (in scripts only)::
 
 from __future__ import annotations
 
+from docuseek.chunking.agentic import AgenticChunker
 from docuseek.chunking.base import BaseChunker
+from docuseek.chunking.context_aware import ContextAwareChunker
 from docuseek.chunking.document_structure import MarkdownHeaderChunker
 from docuseek.chunking.fixed import FixedSizeChunker
 from docuseek.chunking.recursive import RecursiveChunker
+from docuseek.chunking.semantic import SemanticChunker
 from docuseek.experiment_config import ChunkerConfig
 
 
 def get_chunker(config: ChunkerConfig) -> BaseChunker:
+    """Wrapper around ``_build_chunker`` for ``ContextAwareChunker``"""
+    chunker = _build_chunker(config)
+    if config.context_aware:
+        return ContextAwareChunker(inner=chunker)
+    return chunker
+
+
+def _build_chunker(config: ChunkerConfig) -> BaseChunker:
     """Construct a chunker from a ``ChunkerConfig``.
 
     Args:
@@ -55,17 +66,19 @@ def get_chunker(config: ChunkerConfig) -> BaseChunker:
                 overlap=config.chunk_overlap,
             )
         case "semantic":
-            raise NotImplementedError(
-                "Semantic chunker is not yet implemented. "
-                "Available algorithms: fixed, recursive, markdown."
+            return SemanticChunker(
+                embedder=None,  # from settings
+                threshold=None,  # from experiment_config
+                min_chunk_size=None,  # from experiment_config
+                max_chunk_size=config.chunk_size,
             )
         case "agentic":
-            raise NotImplementedError(
-                "Agentic chunker is not yet implemented. "
-                "Available algorithms: fixed, recursive, markdown."
+            return AgenticChunker(
+                window_size=None,  # from experiment_config
+                max_chunk_size=config.chunk_size,
             )
         case _:
             raise ValueError(
                 f"Unknown chunker algorithm: {config.algorithm!r}. "
-                f"Available: fixed, recursive, markdown, semantic."
+                f"Available: agentic, fixed, markdown, recursive, semantic."
             )
