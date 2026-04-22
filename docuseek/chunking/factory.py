@@ -33,6 +33,7 @@ from docuseek.experiment_config import ChunkerConfig
 def get_chunker(config: ChunkerConfig) -> BaseChunker:
     """Wrapper around ``_build_chunker`` for ``ContextAwareChunker``"""
     chunker = _build_chunker(config)
+    # TODO implement ContextAwareChunker
     if config.context_aware:
         return ContextAwareChunker(inner=chunker)
     return chunker
@@ -75,8 +76,9 @@ def _build_chunker(config: ChunkerConfig) -> BaseChunker:
                 window_size=config.window_size,
             )
         case "agentic":
+            # TODO implement AgenticChunker
             return AgenticChunker(
-                window_size=None,  # from experiment_config
+                window_size=config.window_size,
                 max_chunk_size=config.chunk_size,
             )
         case _:
