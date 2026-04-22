@@ -1,7 +1,7 @@
 """
 scripts/build_index.py
 ----------------------
-Wires the full indexing pipeline: load clean docs → chunk → embed → upsert into Qdrant.
+Wires the full indexing pipeline: load chunks → embed → upsert into Qdrant.
 
 This is the script that populates the vector store for the first time.
 It is idempotent: re-running with the same collection name and
@@ -34,11 +34,10 @@ from rich.console import Console
 from rich.progress import track
 
 from docuseek.chunking.base import Chunk
-from docuseek.chunking.factory import get_chunker
+from docuseek.chunking.io import chunks_jsonl_path, load_chunks_jsonl
 from docuseek.config import settings
 from docuseek.embedding.dense import DenseEmbedder
 from docuseek.experiment_config import ExperimentConfig
-from docuseek.ingestion.pipeline import load_jsonl
 from docuseek.logging import configure_logging
 
 logger = structlog.get_logger()
@@ -75,7 +74,6 @@ def build_index(
 
     dense_embedder = DenseEmbedder()
     bm25_embedding_model = SparseTextEmbedding("Qdrant/bm25")
-    chunker = get_chunker(config.chunker)
 
     _setup_collection(
         client=client,
@@ -85,17 +83,10 @@ def build_index(
         force_rebuild=force_rebuild,
     )
 
-    # ── 1. Load clean docs from disk ──────────────────────────────────────────
-    docs = load_jsonl(Path("data/processed/huggingface.jsonl"))  # TODO: add others when implemented
-    logger.info("docs_loaded", source="huggingface", count=len(docs))
+    # ── 1. Load chunks ────────────────────────────────────────────────────────
+    all_chunks = load_chunks_jsonl(chunks_jsonl_path(config.chunker.algorithm))
 
-    # ── 2. Chunk ──────────────────────────────────────────────────────────────
-    all_chunks: list[Chunk] = []
-    for doc in track(docs, description="Chunking"):
-        all_chunks.extend(chunker.chunk(doc))
-    logger.info("chunks_produced", count=len(all_chunks), chunker=config.chunker.algorithm)
-
-    # ── 3. Embed + upsert in batches ──────────────────────────────────────────
+    # ── 2. Embed + upsert in batches ──────────────────────────────────────────
     for i in track(range(0, len(all_chunks), UPSERT_BATCH_SIZE), description="Embedding"):
         batch = all_chunks[i : i + UPSERT_BATCH_SIZE]
 
