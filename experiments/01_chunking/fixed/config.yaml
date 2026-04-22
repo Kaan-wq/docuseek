@@ -3,7 +3,7 @@
 # Fixed chunker, dense-only retrieval, no reranking, no query strategies,
 # no prompt engineering. All technique flags are explicitly set to false.
 
-name: baseline
+name: 01_chunking/fixed
 description: >
   Records fixed-sized chunking numbers against gold_set_v1.jsonl.
 
