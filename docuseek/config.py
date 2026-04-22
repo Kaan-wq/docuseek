@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     mistral_api_key: str
     mistral_model: str = "mistral-small-latest"
 
+    # Gemini
+    gemini_api_key: str
+    gemini_model: str = "gemini-2.5-flash"
+
     # Langfuse
     langfuse_public_key: str
     langfuse_secret_key: str
