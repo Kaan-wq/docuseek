@@ -42,6 +42,7 @@ dependencies = [
     "rich>=13.9",
     "tqdm>=4.67",
     "fastembed>=0.8.0",
+    "chonkie>=1.6.4",
 ]
 
 [dependency-groups]
