@@ -67,9 +67,9 @@ class ChunkerConfig(BaseModel):
     chunk_size: int = 500
     chunk_overlap: int = 50
     context_aware: bool = False
-    threshold: float = 0.5  # semantic only
-    min_chunk_size: int = 100  # semantic only
-    window_size: int = 5  # agentic only
+    threshold: float = 0.75
+    min_chunk_size: int = 100
+    window_size: int = 5
 
 
 class RetrieverConfig(BaseModel):
