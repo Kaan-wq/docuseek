@@ -40,6 +40,7 @@ class FixedSizeChunker:
                         subsequent chunk to preserve local context across
                         boundaries. Defaults to settings.chunk_overlap.
         """
+
         self._splitter = CharacterTextSplitter(
             chunk_size=chunk_size,
             chunk_overlap=overlap,
@@ -56,6 +57,7 @@ class FixedSizeChunker:
         Returns:
             List of Chunk objects. Order matches the original document.
         """
+
         texts = self._splitter.split_text(doc.content)
         return [
             Chunk(
