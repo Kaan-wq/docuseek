@@ -81,11 +81,6 @@ class QueryRewritePipeline:
             shared_llm=need_hyde and need_multi,
         )
 
-    @property
-    def enabled(self) -> bool:
-        """True if at least one rewrite strategy is active."""
-        return any((self._ner, self._hyde, self._multi_query))
-
     def rewrite(self, query: str) -> list[str]:
         """Apply all enabled strategies.
 
