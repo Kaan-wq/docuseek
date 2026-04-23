@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     langfuse_host: str = "https://cloud.langfuse.com"
 
     # Dense Embedding
-    dense_embd_model_name: str = "microsoft/harrier-oss-v1-0.6b"
+    dense_embd_model_name: str = "microsoft/harrier-oss-v1-270m"
     dense_embd_dim: int = 1024
 
     # Late Interaction Embedding
