@@ -44,6 +44,7 @@ dependencies = [
     "fastembed>=0.8.0",
     "chonkie>=1.6.4",
     "gliner>=0.2.26",
+    "langchain-experimental>=0.4.1",
 ]
 
 [dependency-groups]
