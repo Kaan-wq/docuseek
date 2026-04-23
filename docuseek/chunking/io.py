@@ -51,7 +51,7 @@ def chunks_jsonl_path(algorithm: str) -> Path:
 
 def chunk_to_json(chunk: Chunk) -> str:
     """Serialise a Chunk to a single JSON string (no trailing newline)."""
-    return json.dumps(dataclasses.asdict(chunk), ensure_ascii=False)
+    return json.dumps(dataclasses.asdict(chunk), ensure_ascii=False, default=str)
 
 
 def chunk_from_dict(data: dict[str, Any]) -> Chunk:
