@@ -32,12 +32,10 @@ Usage
 from __future__ import annotations
 
 import argparse
-import gc
 import sys
 from pathlib import Path
 
 import structlog
-import torch
 from rich.console import Console
 from rich.progress import track
 
@@ -51,8 +49,6 @@ logger = structlog.get_logger(__name__)
 console = Console()
 
 CLEAN_DOCS_PATH = Path("data/processed/huggingface.jsonl")
-
-REINIT_EVERY = 50
 
 
 # ---------------------------------------------------------------------------
@@ -97,10 +93,6 @@ def chunk_docs(config: ExperimentConfig, force: bool = False) -> None:
         to_process=len(remaining),
     )
 
-    # To avoid OOM
-    del docs
-    gc.collect()
-
     if not remaining:
         console.print("[green]All documents already chunked — nothing to do.[/green]")
         return
@@ -110,12 +102,7 @@ def chunk_docs(config: ExperimentConfig, force: bool = False) -> None:
     total_chunks = 0
     errors = 0
 
-    for i, doc in enumerate(track(remaining, description=f"Chunking ({algorithm})")):
-        logger.info("chunking_doc", i=i, doc_url=doc.url, chars=len(doc.content))
-        if i > 0 and i % REINIT_EVERY == 0:
-            del chunker
-            gc.collect()
-            chunker = get_chunker(config.chunker)
+    for doc in track(remaining, description=f"Chunking ({algorithm})"):
         try:
             doc_chunks = chunker.chunk(doc)
             append_chunks_jsonl(output, doc_chunks)
@@ -126,10 +113,6 @@ def chunk_docs(config: ExperimentConfig, force: bool = False) -> None:
             # Skip this doc and continue — it will be retried on next run
             # since its URL never enters the complete set.
             continue
-        finally:
-            gc.collect()
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
 
     logger.info(
         "chunking_complete",

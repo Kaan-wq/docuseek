@@ -9,9 +9,35 @@ window, and inserts a boundary where similarity drops below a threshold.
 """
 
 import chonkie
+import torch
+from sentence_transformers import SentenceTransformer
 
 from docuseek.chunking.base import Chunk
 from docuseek.ingestion.cleaners import CleanDocument
+
+
+class _BatchedEmbedder:
+    """Wraps SentenceTransformer to cap batch size during encoding.
+
+    Chonkie calls model.encode(all_sentences) in one shot. For large
+    documents this allocates several GiB on GPU. Capping batch_size
+    forces it to process sentences in small groups instead.
+    """
+
+    def __init__(self, model: SentenceTransformer, batch_size: int = 16) -> None:
+        self._model = model
+        self._batch_size = batch_size
+
+    def encode(self, sentences, **kwargs):
+        kwargs["batch_size"] = min(
+            kwargs.get("batch_size", self._batch_size),
+            self._batch_size,
+        )
+        return self._model.encode(sentences, **kwargs)
+
+    def __getattr__(self, name):
+        # Forward everything else (get_sentence_embedding_dimension, etc.)
+        return getattr(self._model, name)
 
 
 class SemanticChunker:
@@ -52,8 +78,9 @@ class SemanticChunker:
                             computing similarity at each candidate boundary.
         """
 
+        st_model = SentenceTransformer(embedder)
         self._chunker = chonkie.SemanticChunker(
-            embedding_model=embedder,
+            embedding_model=_BatchedEmbedder(st_model, batch_size=16),
             threshold=threshold,
             chunk_size=max_chunk_size,
             min_characters_per_sentence=min_chunk_size,
@@ -70,8 +97,8 @@ class SemanticChunker:
         Returns:
             List of Chunk objects in document order.
         """
-
-        chunks = self._chunker.chunk(doc.content)
+        with torch.no_grad():
+            chunks = self._chunker.chunk(doc.content)
         return [
             Chunk(
                 content=chunk.text,
