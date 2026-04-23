@@ -42,6 +42,15 @@ class Settings(BaseSettings):
     late_interaction_embd_model_name: str = "jinaai/jina-colbert-v2"
     late_interaction_embd_dim: int = 64
 
+    # Cross-Encoder Reranker
+    cross_encoder_model_name: str = "cross-encoder/ms-marco-MiniLM-L6-v2"
+
+    # ColBERT Reranker
+    colbert_model_name: str = "jinaai/jina-colbert-v2"
+
+    # GLiNER
+    gliner_model_name: str = "urchade/gliner_medium-v2.1"
+
     # Retrieval
     retrieval_top_k: int = 15
 
