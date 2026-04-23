@@ -3,15 +3,16 @@ docuseek/chunking/semantic.py
 ------------------------------
 Semantic chunker: splits on meaning shifts rather than character count.
 
-Delegates to chonkie's SemanticChunker, which embeds each sentence,
-computes cosine similarity between adjacent sentences within a sliding
-window, and inserts a boundary where similarity drops below a threshold.
+Delegates to LangChain's SemanticChunker, which embeds each sentence,
+computes cosine similarity between adjacent sentences, and inserts a
+boundary where similarity exceeds a breakpoint threshold.
 """
 
-import chonkie
 import torch
+from langchain_experimental.text_splitter import SemanticChunker as LangChainSemanticChunker
 
 from docuseek.chunking.base import Chunk
+from docuseek.embedding.dense import DenseEmbedder
 from docuseek.ingestion.cleaners import CleanDocument
 
 
@@ -20,11 +21,11 @@ class SemanticChunker:
     Splits a document at points where semantic similarity between
     adjacent sentences drops below a threshold.
 
-    Wraps chonkie.SemanticChunker, which handles sentence splitting,
-    embedding, and similarity computation internally.
+    Wraps LangChain's SemanticChunker with DenseEmbedder as the
+    embedding backend.
 
     Attributes:
-        _chunker: Underlying chonkie.SemanticChunker instance.
+        _splitter: Underlying LangChain SemanticChunker instance.
     """
 
     def __init__(
@@ -41,24 +42,18 @@ class SemanticChunker:
                             sentence similarity. Should match the dense
                             embedder used for indexing so representations
                             are consistent.
-            threshold:      Cosine similarity below which a boundary is
-                            inserted. Lower values produce larger chunks;
-                            higher values split more aggressively.
-            min_chunk_size: Minimum number of characters per sentence
-                            before a boundary is considered. Guards against
-                            very short chunks from isolated heading lines.
-            max_chunk_size: Hard character ceiling. Forces a split
-                            regardless of similarity when exceeded.
-            window_size:    Number of adjacent sentences considered when
-                            computing similarity at each candidate boundary.
+            threshold:      Breakpoint threshold — sentences above this
+                            similarity are merged, below it a boundary
+                            is inserted.
+            min_chunk_size: Minimum number of characters per chunk.
+            max_chunk_size: Unused — kept for interface compatibility.
+            window_size:    Unused — kept for interface compatibility.
         """
-
-        self._chunker = chonkie.SemanticChunker(
-            embedding_model=embedder,
-            threshold=threshold,
-            chunk_size=max_chunk_size,
-            min_characters_per_sentence=min_chunk_size,
-            similarity_window=window_size,
+        self._splitter = LangChainSemanticChunker(
+            embeddings=DenseEmbedder(model_name=embedder),
+            breakpoint_threshold_type="percentile",
+            breakpoint_threshold_amount=threshold,
+            min_chunk_size=min_chunk_size,
         )
 
     def chunk(self, doc: CleanDocument) -> list[Chunk]:
@@ -71,18 +66,18 @@ class SemanticChunker:
         Returns:
             List of Chunk objects in document order.
         """
-
         with torch.no_grad():
-            chunks = self._chunker.chunk(doc.content)
+            lc_chunks = self._splitter.create_documents([doc.content])
+
         return [
             Chunk(
-                content=chunk.text,
+                content=chunk.page_content,
                 doc_url=doc.url,
                 doc_title=doc.title,
                 source=doc.source,
                 chunk_index=i,
-                chunk_total=len(chunks),
+                chunk_total=len(lc_chunks),
                 metadata={**doc.metadata},
             )
-            for i, chunk in enumerate(chunks)
+            for i, chunk in enumerate(lc_chunks)
         ]
