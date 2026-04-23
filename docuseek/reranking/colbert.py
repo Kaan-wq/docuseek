@@ -24,7 +24,6 @@ from docuseek.chunking.base import Chunk
 
 logger = structlog.get_logger(__name__)
 
-_DEFAULT_MODEL = "jinaai/jina-colbert-v2"
 _QUERY_MARKER = "[QueryMarker]"
 _DOC_MARKER = "[DocumentMarker]"
 _MAX_LENGTH = 512
@@ -35,7 +34,7 @@ class ColBERTReranker:
 
     def __init__(
         self,
-        model_name: str = _DEFAULT_MODEL,
+        model_name: str,
         device: str | None = None,
     ) -> None:
         self._device = device or (

@@ -8,6 +8,7 @@ Follows the same pattern as ``chunking/factory.py`` and
 a typed config object and returns the built component.
 """
 
+from docuseek.config import settings
 from docuseek.experiment_config import RerankerConfig
 from docuseek.reranking.base import BaseReranker
 from docuseek.reranking.colbert import ColBERTReranker
@@ -32,9 +33,9 @@ def get_reranker(config: RerankerConfig) -> BaseReranker | None:
 
     match config.method:
         case "colbert":
-            return ColBERTReranker()
+            return ColBERTReranker(model_name=settings.colbert_model_name)
         case "cross_encoder":
-            return CrossEncoderReranker()
+            return CrossEncoderReranker(model_name=settings.cross_encoder_model_name)
         case _:
             raise ValueError(
                 f"Unknown reranker method: {config.method!r}. Available: colbert, cross_encoder."
