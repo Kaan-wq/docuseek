@@ -75,16 +75,11 @@ class ChunkerConfig(BaseModel):
 class RetrieverConfig(BaseModel):
     """Configuration for the retrieval stage.
 
-    ``top_k_candidates`` is the first-stage pool size (all modes).
-    ``top_k_final``      is the number of results returned to the generator,
-                         either directly (no reranker) or after reranking.
     ``rrf_k``            is the RRF constant; only used when ``mode`` is ``hybrid``.
     """
 
     mode: Literal["dense", "sparse", "hybrid"]
     rrf_k: int = 60
-    top_k_candidates: int = 100
-    top_k_final: int = 10
 
 
 class RerankerConfig(BaseModel):
@@ -97,7 +92,6 @@ class RerankerConfig(BaseModel):
 
     enabled: bool = False
     method: Literal["colbert", "cross_encoder"] = "colbert"
-    top_k: int = 10
 
 
 class QueryConfig(BaseModel):
