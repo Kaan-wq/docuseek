@@ -8,7 +8,6 @@ computes cosine similarity between adjacent sentences, and inserts a
 boundary where similarity exceeds a breakpoint threshold.
 """
 
-import torch
 from langchain_experimental.text_splitter import SemanticChunker as LangChainSemanticChunker
 
 from docuseek.chunking.base import Chunk
@@ -66,12 +65,11 @@ class SemanticChunker:
         Returns:
             List of Chunk objects in document order.
         """
-        with torch.no_grad():
-            lc_chunks = self._splitter.create_documents([doc.content])
 
+        lc_chunks = self._splitter.split_text(doc.content)
         return [
             Chunk(
-                content=chunk.page_content,
+                content=text,
                 doc_url=doc.url,
                 doc_title=doc.title,
                 source=doc.source,
@@ -79,5 +77,5 @@ class SemanticChunker:
                 chunk_total=len(lc_chunks),
                 metadata={**doc.metadata},
             )
-            for i, chunk in enumerate(lc_chunks)
+            for i, text in enumerate(lc_chunks)
         ]
