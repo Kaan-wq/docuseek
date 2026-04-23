@@ -12,15 +12,22 @@ The hypothetical answer does not need to be correct — it only needs
 to use the right vocabulary and phrasing to land near the real
 documents in embedding space.
 
+The model and tokenizer can be injected by ``QueryRewritePipeline``
+to share a single instance with other LLM-based rewriters (e.g.
+multi-query), avoiding duplicate 3.8B parameter loads.
+
 Reference: Gao et al., "Precise Zero-Shot Dense Retrieval without
 Relevance Labels" (2022).  https://arxiv.org/abs/2212.10496
 """
 
 import structlog
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import (
+    PreTrainedModel,
+    PreTrainedTokenizerBase,
+)
 
-from docuseek.config import settings
+from docuseek.query.model import load_query_model
 
 logger = structlog.get_logger(__name__)
 
@@ -37,20 +44,20 @@ _HYDE_SYSTEM_PROMPT = (
 class HyDEQueryRewriter:
     """Generate a hypothetical answer and use it as the retrieval query."""
 
-    def __init__(self, model_name: str = settings.query_model_name) -> None:
-        self._device = (
-            "cuda"
-            if torch.cuda.is_available()
-            else "mps"
-            if torch.backends.mps.is_available()
-            else "cpu"
-        )
+    def __init__(
+        self,
+        model: PreTrainedModel | None = None,
+        tokenizer: PreTrainedTokenizerBase | None = None,
+    ) -> None:
+        if (model is None) != (tokenizer is None):
+            msg = "model and tokenizer must be provided together or both omitted"
+            raise ValueError(msg)
 
-        self._tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self._model = AutoModelForCausalLM.from_pretrained(model_name).to(self._device)
-        self._model.eval()
-
-        logger.info("hyde_model_loaded", model=model_name, device=self._device)
+        if model is not None:
+            self._model = model
+            self._tokenizer = tokenizer
+        else:
+            self._model, self._tokenizer = load_query_model()
 
     @torch.inference_mode()
     def rewrite(self, query: str) -> list[str]:
@@ -72,12 +79,11 @@ class HyDEQueryRewriter:
             messages,
             return_tensors="pt",
             add_generation_prompt=True,
-        ).to(self._device)
+        ).to(self._model.device)
 
         outputs = self._model.generate(
             inputs,
-            min_new_tokens=200,
-            max_new_tokens=300,
+            max_new_tokens=200,
             temperature=0.7,
             top_p=0.9,
             do_sample=True,
