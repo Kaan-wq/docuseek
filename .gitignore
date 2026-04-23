@@ -208,4 +208,5 @@ __marimo__/
 
 # Scraped Data 
 data/raw/
-data/processed/
+data/processed/*
+!data/processed/chunks_*
