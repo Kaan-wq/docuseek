@@ -16,14 +16,11 @@
     },
     "retriever": {
       "mode": "dense",
-      "rrf_k": 60,
-      "top_k_candidates": 100,
-      "top_k_final": 10
+      "rrf_k": 60
     },
     "reranker": {
       "enabled": false,
-      "method": "colbert",
-      "top_k": 10
+      "method": "colbert"
     },
     "query": {
       "ner": false,
