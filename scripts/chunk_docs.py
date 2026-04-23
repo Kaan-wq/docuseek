@@ -34,7 +34,6 @@ from __future__ import annotations
 import argparse
 import gc
 import sys
-from collections import defaultdict
 from pathlib import Path
 
 import structlog
@@ -42,14 +41,8 @@ import torch
 from rich.console import Console
 from rich.progress import track
 
-from docuseek.chunking.base import Chunk
 from docuseek.chunking.factory import get_chunker
-from docuseek.chunking.io import (
-    append_chunks_jsonl,
-    chunks_jsonl_path,
-    load_chunks_jsonl,
-    write_chunks_jsonl,
-)
+from docuseek.chunking.io import append_chunks_jsonl, chunks_jsonl_path, load_done_urls
 from docuseek.experiment_config import ExperimentConfig
 from docuseek.ingestion.pipeline import load_jsonl
 from docuseek.logging import configure_logging
@@ -60,48 +53,6 @@ console = Console()
 CLEAN_DOCS_PATH = Path("data/processed/huggingface.jsonl")
 
 REINIT_EVERY = 50
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _filter_complete_docs(chunks: list[Chunk]) -> tuple[list[Chunk], set[str]]:
-    """Keep only chunks from documents that were fully chunked.
-
-    A document is considered complete when the number of chunks we hold
-    for its ``doc_url`` equals the ``chunk_total`` declared on those
-    chunks.  Partial documents (from a previous crash mid-doc) are
-    discarded so they can be re-processed cleanly on the next run.
-
-    Args:
-        chunks: All chunks loaded from an existing JSONL file.
-
-    Returns:
-        Tuple of (chunks from complete documents, their ``doc_url`` values).
-    """
-    by_url: dict[str, list[Chunk]] = defaultdict(list)
-    for chunk in chunks:
-        by_url[chunk.doc_url].append(chunk)
-
-    complete_chunks: list[Chunk] = []
-    complete_urls: set[str] = set()
-
-    for url, doc_chunks in by_url.items():
-        expected = doc_chunks[0].chunk_total
-        if len(doc_chunks) == expected:
-            complete_chunks.extend(doc_chunks)
-            complete_urls.add(url)
-        else:
-            logger.info(
-                "discarding_incomplete_doc",
-                doc_url=url,
-                have=len(doc_chunks),
-                expected=expected,
-            )
-
-    return complete_chunks, complete_urls
 
 
 # ---------------------------------------------------------------------------
@@ -131,22 +82,9 @@ def chunk_docs(config: ExperimentConfig, force: bool = False) -> None:
         output.unlink()
         logger.info("forced_restart", deleted=str(output))
 
-    if output.exists():
-        existing = load_chunks_jsonl(output)
-        complete, done_urls = _filter_complete_docs(existing)
-
-        # Rewrite file with only complete docs (discard partial crash debris)
-        if len(complete) < len(existing):
-            write_chunks_jsonl(output, complete)
-            logger.info(
-                "cleaned_partial_chunks",
-                kept=len(complete),
-                discarded=len(existing) - len(complete),
-            )
-
-        logger.info("resuming", complete_docs=len(done_urls), chunks_on_disk=len(complete))
-    else:
-        output.parent.mkdir(parents=True, exist_ok=True)
+    done_urls = load_done_urls(output) if output.exists() and not force else set()
+    output.parent.mkdir(parents=True, exist_ok=True)
+    logger.info("resuming", complete_docs=len(done_urls))
 
     # ── 2. Load clean docs and filter already-done ────────────────────────
     docs = load_jsonl(CLEAN_DOCS_PATH)

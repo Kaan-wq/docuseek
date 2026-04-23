@@ -73,6 +73,38 @@ def chunk_from_dict(data: dict[str, Any]) -> Chunk:
 # ---------------------------------------------------------------------------
 
 
+def load_done_urls(path: Path) -> set[str]:
+    """Stream through JSONL and return all completed doc URLs.
+
+    All URLs except the last one seen are guaranteed complete.
+    The last URL may be a partial crash — excluded so it gets re-chunked.
+    Streams line by line: no Chunk objects ever built.
+    """
+    if not path.exists():
+        return set()
+
+    seen: list[str] = []  # ordered, to identify the last one
+    seen_set: set[str] = set()
+
+    with path.open(encoding="utf-8") as f:
+        for line in f:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            try:
+                url = json.loads(stripped)["doc_url"]
+            except (json.JSONDecodeError, KeyError):
+                continue
+            if url not in seen_set:
+                seen.append(url)
+                seen_set.add(url)
+
+    if not seen:
+        return set()
+
+    return seen_set - {seen[-1]}  # re-chunk the last doc to be safe
+
+
 def load_chunks_jsonl(path: Path) -> list[Chunk]:
     """Load all chunks from a JSONL file.
 
@@ -99,19 +131,6 @@ def load_chunks_jsonl(path: Path) -> list[Chunk]:
 
     logger.info("chunks_loaded", path=str(path), count=len(chunks))
     return chunks
-
-
-def write_chunks_jsonl(path: Path, chunks: list[Chunk]) -> None:
-    """Overwrite a JSONL file with a list of chunks.
-
-    Creates parent directories if they do not exist.
-    """
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as f:
-        for chunk in chunks:
-            f.write(chunk_to_json(chunk) + "\n")
-
-    logger.debug("chunks_written", path=str(path), count=len(chunks))
 
 
 def append_chunks_jsonl(path: Path, chunks: list[Chunk]) -> None:
