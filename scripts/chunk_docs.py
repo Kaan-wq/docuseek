@@ -32,12 +32,10 @@ Usage
 from __future__ import annotations
 
 import argparse
-import gc
 import sys
 from pathlib import Path
 
 import structlog
-import torch
 from rich.console import Console
 from rich.progress import track
 
@@ -113,10 +111,6 @@ def chunk_docs(config: ExperimentConfig, force: bool = False) -> None:
             errors += 1
             logger.exception("chunking_failed", doc_url=doc.url)
             continue
-        finally:
-            gc.collect()
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
 
     logger.info(
         "chunking_complete",
