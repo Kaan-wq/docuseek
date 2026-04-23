@@ -48,6 +48,7 @@ from docuseek.eval.benchmark import aggregate, load_gold_set
 from docuseek.eval.retrieval_metrics import compute_all, recall_at_k
 from docuseek.experiment_config import ExperimentConfig
 from docuseek.logging import configure_logging
+from docuseek.reranking.factory import get_reranker
 from docuseek.retrieval.factory import get_retriever
 
 logger = structlog.get_logger()
@@ -87,6 +88,7 @@ def run_benchmark(config: ExperimentConfig) -> dict:
     )
 
     retriever = get_retriever(config.retriever)
+    reranker = get_reranker(config.reranker)
 
     # ── Per-question scoring ─────────────────────────────────────────────────
     all_scores: list[dict[str, float]] = []
@@ -101,9 +103,13 @@ def run_benchmark(config: ExperimentConfig) -> dict:
         # Chunks from same URL count as one hit at rank of first chunk.
         retrieved_urls = list(dict.fromkeys(chunk.doc_url for chunk in chunks))
 
+        if reranker:
+            reranked_chunks = reranker.rerank(question.question, chunks, top_k=k_p)
+            reranked_urls = list(dict.fromkeys(chunk.doc_url for chunk in reranked_chunks))
+
         # Primary metrics at k_primary
         scores = compute_all(
-            retrieved_urls=retrieved_urls,
+            retrieved_urls=reranked_urls if reranker else retrieved_urls,
             gold_urls=question.source_urls,
             k=k_p,
         )
