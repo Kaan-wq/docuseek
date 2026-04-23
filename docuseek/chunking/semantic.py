@@ -3,15 +3,14 @@ docuseek/chunking/semantic.py
 ------------------------------
 Semantic chunker: splits on meaning shifts rather than character count.
 
-Delegates to LangChain's SemanticChunker, which embeds each sentence,
-computes cosine similarity between adjacent sentences, and inserts a
-boundary where similarity exceeds a breakpoint threshold.
+Delegates to chonkie's SemanticChunker, which embeds each sentence,
+computes cosine similarity between adjacent sentences within a sliding
+window, and inserts a boundary where similarity drops below a threshold.
 """
 
-from langchain_experimental.text_splitter import SemanticChunker as LangChainSemanticChunker
+import chonkie
 
 from docuseek.chunking.base import Chunk
-from docuseek.embedding.dense import DenseEmbedder
 from docuseek.ingestion.cleaners import CleanDocument
 
 
@@ -20,11 +19,11 @@ class SemanticChunker:
     Splits a document at points where semantic similarity between
     adjacent sentences drops below a threshold.
 
-    Wraps LangChain's SemanticChunker with DenseEmbedder as the
-    embedding backend.
+    Wraps chonkie.SemanticChunker, which handles sentence splitting,
+    embedding, and similarity computation internally.
 
     Attributes:
-        _splitter: Underlying LangChain SemanticChunker instance.
+        _chunker: Underlying chonkie.SemanticChunker instance.
     """
 
     def __init__(
@@ -41,18 +40,24 @@ class SemanticChunker:
                             sentence similarity. Should match the dense
                             embedder used for indexing so representations
                             are consistent.
-            threshold:      Breakpoint threshold — sentences above this
-                            similarity are merged, below it a boundary
-                            is inserted.
-            min_chunk_size: Minimum number of characters per chunk.
-            max_chunk_size: Unused — kept for interface compatibility.
-            window_size:    Unused — kept for interface compatibility.
+            threshold:      Cosine similarity below which a boundary is
+                            inserted. Lower values produce larger chunks;
+                            higher values split more aggressively.
+            min_chunk_size: Minimum number of characters per sentence
+                            before a boundary is considered. Guards against
+                            very short chunks from isolated heading lines.
+            max_chunk_size: Hard character ceiling. Forces a split
+                            regardless of similarity when exceeded.
+            window_size:    Number of adjacent sentences considered when
+                            computing similarity at each candidate boundary.
         """
-        self._splitter = LangChainSemanticChunker(
-            embeddings=DenseEmbedder(model_name=embedder),
-            breakpoint_threshold_type="percentile",
-            breakpoint_threshold_amount=threshold,
-            min_chunk_size=min_chunk_size,
+
+        self._chunker = chonkie.SemanticChunker(
+            embedding_model=embedder,
+            threshold=threshold,
+            chunk_size=max_chunk_size,
+            min_characters_per_sentence=min_chunk_size,
+            similarity_window=window_size,
         )
 
     def chunk(self, doc: CleanDocument) -> list[Chunk]:
@@ -66,16 +71,16 @@ class SemanticChunker:
             List of Chunk objects in document order.
         """
 
-        lc_chunks = self._splitter.split_text(doc.content)
+        chunks = self._chunker.chunk(doc.content)
         return [
             Chunk(
-                content=text,
+                content=chunk.text,
                 doc_url=doc.url,
                 doc_title=doc.title,
                 source=doc.source,
                 chunk_index=i,
-                chunk_total=len(lc_chunks),
+                chunk_total=len(chunks),
                 metadata={**doc.metadata},
             )
-            for i, text in enumerate(lc_chunks)
+            for i, chunk in enumerate(chunks)
         ]
