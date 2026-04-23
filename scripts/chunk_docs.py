@@ -127,6 +127,7 @@ def chunk_docs(config: ExperimentConfig, force: bool = False) -> None:
             # since its URL never enters the complete set.
             continue
         finally:
+            gc.collect()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
 
