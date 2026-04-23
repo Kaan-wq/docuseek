@@ -37,7 +37,7 @@ _HYDE_SYSTEM_PROMPT = (
 class HyDEQueryRewriter:
     """Generate a hypothetical answer and use it as the retrieval query."""
 
-    def __init__(self, model_name: str = settings.hyde_model_name) -> None:
+    def __init__(self, model_name: str = settings.query_model_name) -> None:
         self._device = (
             "cuda"
             if torch.cuda.is_available()
