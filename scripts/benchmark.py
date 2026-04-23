@@ -48,7 +48,9 @@ from docuseek.eval.benchmark import aggregate, load_gold_set
 from docuseek.eval.retrieval_metrics import compute_all, recall_at_k
 from docuseek.experiment_config import ExperimentConfig
 from docuseek.logging import configure_logging
+from docuseek.query.rewrite import QueryRewritePipeline
 from docuseek.reranking.factory import get_reranker
+from docuseek.reranking.rrf import reciprocal_rank_fusion
 from docuseek.retrieval.factory import get_retriever
 
 logger = structlog.get_logger()
@@ -89,6 +91,7 @@ def run_benchmark(config: ExperimentConfig) -> dict:
 
     retriever = get_retriever(config.retriever)
     reranker = get_reranker(config.reranker)
+    query = QueryRewritePipeline(config.query)
 
     # ── Per-question scoring ─────────────────────────────────────────────────
     all_scores: list[dict[str, float]] = []
@@ -96,8 +99,13 @@ def run_benchmark(config: ExperimentConfig) -> dict:
     per_difficulty: dict[str, list[dict[str, float]]] = defaultdict(list)
 
     for question in questions:
-        # Retrieve at the larger of the two k values so one call covers both
-        chunks = retriever.retrieve(question.question, top_k=max(k_p, k_r))
+        augmented_questions = query.rewrite(question.question)
+        raw_chunks = [retriever.retrieve(q, top_k=max(k_p, k_r)) for q in augmented_questions]
+        chunks = (
+            reciprocal_rank_fusion(raw_chunks, top_k=max(k_p, k_r))
+            if len(raw_chunks) > 1
+            else raw_chunks[0]
+        )
 
         # Deduplicate to doc-level preserving rank order.
         # Chunks from same URL count as one hit at rank of first chunk.
@@ -105,11 +113,13 @@ def run_benchmark(config: ExperimentConfig) -> dict:
 
         if reranker:
             reranked_chunks = reranker.rerank(question.question, chunks, top_k=k_p)
-            reranked_urls = list(dict.fromkeys(chunk.doc_url for chunk in reranked_chunks))
+            final_urls = list(dict.fromkeys(chunk.doc_url for chunk in reranked_chunks))
+        else:
+            final_urls = retrieved_urls
 
         # Primary metrics at k_primary
         scores = compute_all(
-            retrieved_urls=reranked_urls if reranker else retrieved_urls,
+            retrieved_urls=final_urls,
             gold_urls=question.source_urls,
             k=k_p,
         )
