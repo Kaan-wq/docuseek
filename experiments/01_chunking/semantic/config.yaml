@@ -9,12 +9,12 @@ description: >
 
 chunker:
   algorithm: semantic
-  chunk_size: 500
+  chunk_size: 1000
   chunk_overlap: 50
   context_aware: false
   threshold: 0.75
-  min_chunk_size: 100
-  window_size: 2
+  min_chunk_size: 500
+  window_size: 5
 
 retriever:
   mode: dense
