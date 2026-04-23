@@ -210,3 +210,6 @@ __marimo__/
 data/raw/
 data/processed/*
 !data/processed/chunks_*
+
+#Mac specific
+.DS_Store
