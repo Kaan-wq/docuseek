@@ -51,6 +51,9 @@ class Settings(BaseSettings):
     # GLiNER
     gliner_model_name: str = "urchade/gliner_medium-v2.1"
 
+    # HyDE
+    hyde_model_name: str = "microsoft/Phi-4-mini-instruct"
+
     # Retrieval
     retrieval_top_k: int = 15
 
