@@ -173,6 +173,7 @@ def chunk_docs(config: ExperimentConfig, force: bool = False) -> None:
     errors = 0
 
     for i, doc in enumerate(track(remaining, description=f"Chunking ({algorithm})")):
+        logger.info("chunking_doc", i=i, doc_url=doc.url, chars=len(doc.content))
         if i > 0 and i % REINIT_EVERY == 0:
             del chunker
             gc.collect()
