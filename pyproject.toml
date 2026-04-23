@@ -43,6 +43,7 @@ dependencies = [
     "tqdm>=4.67",
     "fastembed>=0.8.0",
     "chonkie>=1.6.4",
+    "gliner>=0.2.26",
 ]
 
 [dependency-groups]
