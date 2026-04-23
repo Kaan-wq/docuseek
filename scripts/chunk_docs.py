@@ -37,6 +37,7 @@ from collections import defaultdict
 from pathlib import Path
 
 import structlog
+import torch
 from rich.console import Console
 from rich.progress import track
 
@@ -175,6 +176,9 @@ def chunk_docs(config: ExperimentConfig, force: bool = False) -> None:
             # Skip this doc and continue — it will be retried on next run
             # since its URL never enters the complete set.
             continue
+        finally:
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
     logger.info(
         "chunking_complete",
