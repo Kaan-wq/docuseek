@@ -9,6 +9,7 @@ window, and inserts a boundary where similarity drops below a threshold.
 """
 
 import chonkie
+import torch
 
 from docuseek.chunking.base import Chunk
 from docuseek.ingestion.cleaners import CleanDocument
@@ -71,7 +72,8 @@ class SemanticChunker:
             List of Chunk objects in document order.
         """
 
-        chunks = self._chunker.chunk(doc.content)
+        with torch.no_grad():
+            chunks = self._chunker.chunk(doc.content)
         return [
             Chunk(
                 content=chunk.text,
