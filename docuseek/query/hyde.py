@@ -75,11 +75,12 @@ class HyDEQueryRewriter:
             add_generation_prompt=True,
         ).to(self._model.device)
 
-        input_tokens = inputs.shape[-1]
+        input_ids = inputs["input_ids"]
+        input_tokens = input_ids.shape[-1]
 
         t0 = time.perf_counter()
         outputs = self._model.generate(
-            inputs,
+            input_ids,
             max_new_tokens=200,
             temperature=0.7,
             top_p=0.9,
@@ -87,7 +88,7 @@ class HyDEQueryRewriter:
         )
         latency_ms = (time.perf_counter() - t0) * 1000
 
-        generated_ids = outputs[0, inputs.shape[-1] :]
+        generated_ids = outputs[0, input_tokens:]
         hypothetical_doc = self._tokenizer.decode(
             generated_ids,
             skip_special_tokens=True,

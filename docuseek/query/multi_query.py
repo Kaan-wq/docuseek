@@ -102,7 +102,7 @@ class MultiQueryRewriter:
         )
         latency_ms = (time.perf_counter() - t0) * 1000
 
-        generated_ids = outputs[0, inputs.shape[-1] :]
+        generated_ids = outputs[0, input_tokens:]
         raw_output = self._tokenizer.decode(
             generated_ids,
             skip_special_tokens=True,
