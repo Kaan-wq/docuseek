@@ -112,7 +112,7 @@ class QueryRewritePipeline:
         # Deduplicate while preserving order
         queries = list(dict.fromkeys(queries))
 
-        if self._ner or self.hyde or self._multi_query:
+        if self._ner or self._hyde or self._multi_query:
             logger.debug(
                 "query_rewritten",
                 original=query,
