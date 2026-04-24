@@ -107,9 +107,12 @@ def chunk_docs(config: ExperimentConfig, force: bool = False) -> None:
             doc_chunks = chunker.chunk(doc)
             append_chunks_jsonl(output, doc_chunks)
             total_chunks += len(doc_chunks)
-        except Exception:
+        except Exception as e:
             errors += 1
-            logger.exception("chunking_failed", doc_url=doc.url)
+            root = e
+            while root.__cause__ or root.__context__:
+                root = root.__cause__ or root.__context__
+            logger.error("chunking_failed", doc_url=doc.url, error=str(root).splitlines()[0])
             continue
 
     logger.info(
