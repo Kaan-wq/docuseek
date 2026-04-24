@@ -46,6 +46,7 @@ dependencies = [
     "gliner>=0.2.26",
     "langchain-experimental>=0.4.1",
     "einops>=0.8.2",
+    "better-exceptions>=0.3.3",
 ]
 
 [dependency-groups]
