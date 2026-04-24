@@ -47,7 +47,10 @@ class ColBERTReranker:
             else "cpu"
         )
 
-        self._tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self._tokenizer = AutoTokenizer.from_pretrained(
+            model_name,
+            trust_remote_code=True,
+        )
         self._model = AutoModel.from_pretrained(
             model_name,
             trust_remote_code=True,
