@@ -1,0 +1,138 @@
+{
+  "experiment": "03_reranking/none",
+  "description": "Hybrid RRF retrieval with semantic chunking and no reranker. Baseline against which ColBERT and cross-encoder gains are measured.\n",
+  "timestamp": "2026-04-24T13:16:12.489942+00:00",
+  "config": {
+    "name": "03_reranking/none",
+    "description": "Hybrid RRF retrieval with semantic chunking and no reranker. Baseline against which ColBERT and cross-encoder gains are measured.\n",
+    "chunker": {
+      "algorithm": "semantic",
+      "chunk_size": 500,
+      "chunk_overlap": 50,
+      "context_aware": false,
+      "threshold": 0.75,
+      "min_chunk_size": 100,
+      "window_size": 5
+    },
+    "retriever": {
+      "mode": "hybrid",
+      "rrf_k": 60
+    },
+    "reranker": {
+      "enabled": false,
+      "method": "colbert"
+    },
+    "query": {
+      "ner": false,
+      "hyde": false,
+      "multi_query": false
+    },
+    "generation": {
+      "cot": false,
+      "few_shot": false,
+      "budget_forcing": false
+    },
+    "eval": {
+      "gold_set_path": "data/eval/gold_set_v1.jsonl",
+      "k_primary": 10,
+      "k_recall": 100
+    }
+  },
+  "aggregate": {
+    "recall@10": 0.92,
+    "precision@10": 0.09600000000000002,
+    "mrr": 0.8293501400560224,
+    "map@10": 0.7912619047619047,
+    "ndcg@10": 0.8319461343515371,
+    "recall@100": 0.955
+  },
+  "by_library": {
+    "accelerate": {
+      "recall@10": 0.8333333333333334,
+      "precision@10": 0.10000000000000002,
+      "mrr": 1.0,
+      "map@10": 0.8333333333333334,
+      "ndcg@10": 0.8710490642551528,
+      "recall@100": 0.8333333333333334
+    },
+    "transformers": {
+      "recall@10": 0.9016393442622951,
+      "precision@10": 0.09344262295081968,
+      "mrr": 0.7798089727694356,
+      "map@10": 0.7501561280249806,
+      "ndcg@10": 0.7944652884613602,
+      "recall@100": 0.9590163934426229
+    },
+    "peft": {
+      "recall@10": 0.9166666666666666,
+      "precision@10": 0.10000000000000002,
+      "mrr": 0.7222222222222222,
+      "map@10": 0.638888888888889,
+      "ndcg@10": 0.7291677833180623,
+      "recall@100": 0.9166666666666666
+    },
+    "datasets": {
+      "recall@10": 1.0,
+      "precision@10": 0.1,
+      "mrr": 0.911111111111111,
+      "map@10": 0.911111111111111,
+      "ndcg@10": 0.9318725341371713,
+      "recall@100": 1.0
+    },
+    "diffusers": {
+      "recall@10": 0.9722222222222222,
+      "precision@10": 0.1,
+      "mrr": 0.9351851851851851,
+      "map@10": 0.9074074074074073,
+      "ndcg@10": 0.9302264970187175,
+      "recall@100": 0.9722222222222222
+    }
+  },
+  "by_difficulty": {
+    "easy": {
+      "recall@10": 0.9696969696969697,
+      "precision@10": 0.09696969696969697,
+      "mrr": 0.852020202020202,
+      "map@10": 0.8494949494949495,
+      "ndcg@10": 0.8800455022755099,
+      "recall@100": 1.0
+    },
+    "medium": {
+      "recall@10": 0.9393939393939394,
+      "precision@10": 0.09696969696969697,
+      "mrr": 0.8022875816993464,
+      "map@10": 0.7803030303030303,
+      "ndcg@10": 0.8251613196550132,
+      "recall@100": 0.9848484848484849
+    },
+    "hard": {
+      "recall@10": 0.8529411764705882,
+      "precision@10": 0.09411764705882353,
+      "mrr": 0.8336134453781512,
+      "map@10": 0.7453781512605042,
+      "ndcg@10": 0.7918467150425429,
+      "recall@100": 0.8823529411764706
+    }
+  },
+  "latency": {
+    "encoding": {
+      "mean_ms": 48.19300457000509,
+      "p50_ms": 47.2988860001351,
+      "p95_ms": 52.800934000060806,
+      "n": 100
+    },
+    "search": {
+      "mean_ms": 251.43162788999462,
+      "p50_ms": 244.55874099976427,
+      "p95_ms": 252.40118399983658,
+      "n": 100
+    },
+    "total": {
+      "mean_ms": 299.6246324599997,
+      "p50_ms": 292.0930599998428,
+      "p95_ms": 302.5679139998374,
+      "n": 100
+    }
+  },
+  "reranker_latency": null
+}
