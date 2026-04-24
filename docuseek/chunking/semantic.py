@@ -9,12 +9,9 @@ window, and inserts a boundary where similarity drops below a threshold.
 """
 
 import chonkie
-import torch
 
 from docuseek.chunking.base import Chunk
 from docuseek.ingestion.cleaners import CleanDocument
-
-MAX_CHARS = 20_000
 
 
 class SemanticChunker:
@@ -37,6 +34,24 @@ class SemanticChunker:
         max_chunk_size: int = 500,
         window_size: int = 5,
     ) -> None:
+        """
+        Args:
+            embedder:       sentence-transformers model name used for
+                            sentence similarity. Should match the dense
+                            embedder used for indexing so representations
+                            are consistent.
+            threshold:      Cosine similarity below which a boundary is
+                            inserted. Lower values produce larger chunks;
+                            higher values split more aggressively.
+            min_chunk_size: Minimum number of characters per sentence
+                            before a boundary is considered. Guards against
+                            very short chunks from isolated heading lines.
+            max_chunk_size: Hard character ceiling. Forces a split
+                            regardless of similarity when exceeded.
+            window_size:    Number of adjacent sentences considered when
+                            computing similarity at each candidate boundary.
+        """
+
         self._chunker = chonkie.SemanticChunker(
             embedding_model=embedder,
             threshold=threshold,
@@ -44,29 +59,6 @@ class SemanticChunker:
             min_characters_per_sentence=min_chunk_size,
             similarity_window=window_size,
         )
-
-    def _split_sections(self, text: str) -> list[str]:
-        """Pre-split text into sections under MAX_CHARS on paragraph boundaries."""
-        if len(text) <= MAX_CHARS:
-            return [text]
-
-        paragraphs = text.split("\n\n")
-        sections: list[str] = []
-        current: list[str] = []
-        current_len = 0
-
-        for para in paragraphs:
-            if current_len + len(para) > MAX_CHARS and current:
-                sections.append("\n\n".join(current))
-                current = []
-                current_len = 0
-            current.append(para)
-            current_len += len(para)
-
-        if current:
-            sections.append("\n\n".join(current))
-
-        return sections
 
     def chunk(self, doc: CleanDocument) -> list[Chunk]:
         """
@@ -78,23 +70,17 @@ class SemanticChunker:
         Returns:
             List of Chunk objects in document order.
         """
-        sections = self._split_sections(doc.content)
 
-        all_texts: list[str] = []
-        for section in sections:
-            with torch.no_grad():
-                section_chunks = self._chunker.chunk(section)
-            all_texts.extend(c.text for c in section_chunks)
-
+        chunks = self._chunker.chunk(doc.content)
         return [
             Chunk(
-                content=text,
+                content=chunk.text,
                 doc_url=doc.url,
                 doc_title=doc.title,
                 source=doc.source,
                 chunk_index=i,
-                chunk_total=len(all_texts),
+                chunk_total=len(chunks),
                 metadata={**doc.metadata},
             )
-            for i, text in enumerate(all_texts)
+            for i, chunk in enumerate(chunks)
         ]
