@@ -43,7 +43,16 @@ from pathlib import Path
 
 import structlog
 from rich.console import Console
-from rich.progress import track
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    SpinnerColumn,
+    TaskProgressColumn,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+)
 
 from docuseek.eval.benchmark import aggregate, load_gold_set
 from docuseek.eval.display import print_results
@@ -101,13 +110,6 @@ def run_benchmark(config: ExperimentConfig) -> dict:
     reranker = get_reranker(config.reranker)
     query = QueryRewritePipeline(config.query)
 
-    # Warm up caches before timing begins
-    for q in track(questions[:10], description="Warming up caches"):
-        warmup_chunks = retriever.retrieve(q.question, top_k=max(k_p, k_r))
-        if reranker:
-            reranker.rerank(q.question, warmup_chunks, top_k=k_p)
-        query.rewrite(q.question)
-
     # ── Per-question scoring ─────────────────────────────────────────────────
     all_scores: list[dict[str, float]] = []
     per_library: dict[str, list[dict[str, float]]] = defaultdict(list)
@@ -116,59 +118,78 @@ def run_benchmark(config: ExperimentConfig) -> dict:
     reranker_ms_samples: list[float] = []
     query_samples_by_method: dict[str, list[QueryMethodSample]] = defaultdict(list)
 
-    for question in track(questions, description="Benchmarking"):
-        raw_chunks = []
-        question_samples: list[LatencySample] = []
-        augmented_questions, method_samples = query.rewrite_timed(question.question)
+    progress = Progress(
+        SpinnerColumn(),
+        TextColumn("[bold cyan]{task.description}"),
+        BarColumn(bar_width=32, style="cyan", complete_style="bold cyan"),
+        MofNCompleteColumn(),
+        TaskProgressColumn(),
+        TimeElapsedColumn(),
+        TextColumn("eta"),
+        TimeRemainingColumn(),
+        console=console,
+        expand=False,
+    )
 
-        for method, sample in method_samples.items():
-            query_samples_by_method[method].append(sample)
+    with progress:
+        task = progress.add_task("Benchmarking", total=len(questions))
+        for question in questions:
+            raw_chunks = []
+            question_samples: list[LatencySample] = []
+            augmented_questions, method_samples = query.rewrite_timed(question.question)
 
-        for q in augmented_questions:
-            chunks_q, sample = retriever.retrieve_timed(q, top_k=max(k_p, k_r))
-            raw_chunks.append(chunks_q)
-            question_samples.append(sample)
+            for method, sample in method_samples.items():
+                query_samples_by_method[method].append(sample)
 
-        latency_samples.append(
-            LatencySample(
-                encoding_ms=sum(s.encoding_ms for s in question_samples),
-                search_ms=sum(s.search_ms for s in question_samples),
+            for q in augmented_questions:
+                chunks_q, sample = retriever.retrieve_timed(q, top_k=max(k_p, k_r))
+                raw_chunks.append(chunks_q)
+                question_samples.append(sample)
+
+            latency_samples.append(
+                LatencySample(
+                    encoding_ms=sum(s.encoding_ms for s in question_samples),
+                    search_ms=sum(s.search_ms for s in question_samples),
+                )
             )
-        )
 
-        chunks = (
-            reciprocal_rank_fusion(raw_chunks, top_k=max(k_p, k_r))
-            if len(raw_chunks) > 1
-            else raw_chunks[0]
-        )
+            chunks = (
+                reciprocal_rank_fusion(raw_chunks, top_k=max(k_p, k_r))
+                if len(raw_chunks) > 1
+                else raw_chunks[0]
+            )
 
-        # Deduplicate to doc-level preserving rank order.
-        # Chunks from same URL count as one hit at rank of first chunk.
-        retrieved_urls = list(dict.fromkeys(chunk.doc_url for chunk in chunks))
+            # Deduplicate to doc-level preserving rank order.
+            # Chunks from same URL count as one hit at rank of first chunk.
+            retrieved_urls = list(dict.fromkeys(chunk.doc_url for chunk in chunks))
 
-        if reranker:
-            reranked_chunks, rerank_ms = reranker.rerank_timed(question.question, chunks, top_k=k_p)
-            reranker_ms_samples.append(rerank_ms)
-            final_urls = list(dict.fromkeys(chunk.doc_url for chunk in reranked_chunks))
-        else:
-            final_urls = retrieved_urls
+            if reranker:
+                reranked_chunks, rerank_ms = reranker.rerank_timed(
+                    question.question, chunks, top_k=k_p
+                )
+                reranker_ms_samples.append(rerank_ms)
+                final_urls = list(dict.fromkeys(chunk.doc_url for chunk in reranked_chunks))
+            else:
+                final_urls = retrieved_urls
 
-        # Primary metrics at k_primary
-        scores = compute_all(
-            retrieved_urls=final_urls,
-            gold_urls=question.source_urls,
-            k=k_p,
-        )
-        # Recall at k_recall (only metric that needs the wider candidate pool)
-        scores[f"recall@{k_r}"] = recall_at_k(
-            retrieved_urls=retrieved_urls,
-            gold_urls=question.source_urls,
-            k=k_r,
-        )
+            # Primary metrics at k_primary
+            scores = compute_all(
+                retrieved_urls=final_urls,
+                gold_urls=question.source_urls,
+                k=k_p,
+            )
+            # Recall at k_recall (only metric that needs the wider candidate pool)
+            scores[f"recall@{k_r}"] = recall_at_k(
+                retrieved_urls=retrieved_urls,
+                gold_urls=question.source_urls,
+                k=k_r,
+            )
 
-        all_scores.append(scores)
-        per_library[question.library].append(scores)
-        per_difficulty[question.difficulty].append(scores)
+            all_scores.append(scores)
+            per_library[question.library].append(scores)
+            per_difficulty[question.difficulty].append(scores)
+
+            progress.advance(task)
 
     # ── Aggregate ────────────────────────────────────────────────────────────
     agg = aggregate(all_scores)
