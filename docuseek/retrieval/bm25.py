@@ -12,12 +12,15 @@ semantic embeddings may not surface reliably.
 
 from __future__ import annotations
 
+import time
+
 from fastembed import SparseTextEmbedding
 from qdrant_client import QdrantClient
-from qdrant_client.models import Document
+from qdrant_client.models import Document, SparseVector
 
 from docuseek.chunking.base import Chunk
 from docuseek.config import settings
+from docuseek.eval.latency import LatencySample
 
 
 class BM25Retriever:
@@ -71,3 +74,43 @@ class BM25Retriever:
             Chunk(**{k: v for k, v in result.payload.items() if k != "chunk_id"})
             for result in results.points
         ]
+
+    def retrieve_timed(self, query: str, top_k: int) -> tuple[list[Chunk], LatencySample]:
+        """
+        Retrieve chunks via BM25 and return per-component latency.
+
+        Encodes query manually before calling Qdrant so the two steps
+        can be timed independently.
+
+        Args:
+            query: Natural language query string.
+            top_k: Number of results to return.
+
+        Returns:
+            A tuple of (chunks, sample) where chunks matches what ``retrieve``
+            would return, and sample carries encoding_ms and search_ms.
+        """
+        t0 = time.perf_counter()
+        embedding = next(iter(self._embedder.embed([query])))
+        encoding_ms = (time.perf_counter() - t0) * 1000
+
+        sparse_vec = SparseVector(
+            indices=embedding.indices.tolist(),
+            values=embedding.values.tolist(),
+        )
+
+        t1 = time.perf_counter()
+        results = self._client.query_points(
+            collection_name=self._collection_name,
+            query=sparse_vec,
+            using="bm25",
+            with_payload=True,
+            limit=top_k,
+        )
+        search_ms = (time.perf_counter() - t1) * 1000
+
+        chunks = [
+            Chunk(**{k: v for k, v in result.payload.items() if k != "chunk_id"})
+            for result in results.points
+        ]
+        return chunks, LatencySample(encoding_ms=encoding_ms, search_ms=search_ms)

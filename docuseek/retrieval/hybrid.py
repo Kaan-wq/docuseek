@@ -15,7 +15,10 @@ and individual Rank Learning Methods" (SIGIR 2009).
 
 from __future__ import annotations
 
+import time
+
 from docuseek.chunking.base import Chunk
+from docuseek.eval.latency import LatencySample
 from docuseek.retrieval.bm25 import BM25Retriever
 from docuseek.retrieval.dense import DenseRetriever
 
@@ -104,3 +107,30 @@ class HybridRetriever:
 
         sorted_chunks = sorted(scores.values(), key=lambda x: x[1], reverse=True)
         return [chunk for chunk, _ in sorted_chunks]
+
+    def retrieve_timed(self, query: str, top_k: int) -> tuple[list[Chunk], LatencySample]:
+        """
+        Retrieve and fuse results from both retrievers, returning per-component latency.
+
+        Delegates timing to each sub-retriever, then times RRF fusion separately.
+        encoding_ms is the sum of both encoding steps (they run sequentially).
+        search_ms is the sum of both Qdrant queries plus RRF fusion overhead.
+
+        Args:
+            query: Natural language query string.
+            top_k: Number of results to return after fusion.
+
+        Returns:
+            Fused chunks matching ``retrieve``, plus a ``LatencySample``.
+        """
+        dense_chunks, dense_sample = self._dense.retrieve_timed(query, top_k * self._oversample)
+        bm25_chunks, bm25_sample = self._bm25.retrieve_timed(query, top_k * self._oversample)
+
+        t0 = time.perf_counter()
+        fused = self._rrf(dense_chunks, bm25_chunks)[:top_k]
+        rrf_ms = (time.perf_counter() - t0) * 1000
+
+        return fused, LatencySample(
+            encoding_ms=dense_sample.encoding_ms + bm25_sample.encoding_ms,
+            search_ms=dense_sample.search_ms + bm25_sample.search_ms + rrf_ms,
+        )

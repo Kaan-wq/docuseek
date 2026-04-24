@@ -4,11 +4,14 @@ docuseek/retrieval/dense.py
 Dense retriever: embeds the query and searches Qdrant by cosine similarity.
 """
 
+import time
+
 from qdrant_client import QdrantClient
 
 from docuseek.chunking.base import Chunk
 from docuseek.config import settings
 from docuseek.embedding.dense import DenseEmbedder
+from docuseek.eval.latency import LatencySample
 
 
 class DenseRetriever:
@@ -65,3 +68,37 @@ class DenseRetriever:
             Chunk(**{k: v for k, v in result.payload.items() if k != "chunk_id"})
             for result in results.points
         ]
+
+    def retrieve_timed(
+        self, query: str, top_k: int = settings.retrieval_top_k
+    ) -> tuple[list[Chunk], LatencySample]:
+        """
+        Embed the query, search Qdrant, and return per-component latency.
+
+        Args:
+            query: Raw query string from the user.
+            top_k: Number of chunks to return.
+
+        Returns:
+            Chunks matching ``retrieve``, plus a ``LatencySample`` with
+            encoding_ms and search_ms measured independently.
+        """
+        t0 = time.perf_counter()
+        query_embd = self._embedder.embed_query(query)
+        encoding_ms = (time.perf_counter() - t0) * 1000
+
+        t1 = time.perf_counter()
+        results = self._client.query_points(
+            collection_name=self._collection_name,
+            query=query_embd,
+            using=settings.dense_embd_model_name,
+            with_payload=True,
+            limit=top_k,
+        )
+        search_ms = (time.perf_counter() - t1) * 1000
+
+        chunks = [
+            Chunk(**{k: v for k, v in result.payload.items() if k != "chunk_id"})
+            for result in results.points
+        ]
+        return chunks, LatencySample(encoding_ms=encoding_ms, search_ms=search_ms)
