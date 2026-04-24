@@ -3,18 +3,10 @@ docuseek/query/rewrite.py
 --------------------------
 Composes enabled query strategies into a single rewrite pipeline.
 
-Query rewriting sits upstream of retrieval — it transforms the user's
-raw question before it hits the retriever.  Strategies are independent
-booleans in ``QueryConfig``.
+NER applied first as sequential transformation. HyDE & multi-query
+branch independently from enriched query and results are merged:
 
-NER is applied first as a sequential transformation.  HyDE and
-multi-query then branch independently from the enriched query
-and their results are merged:
-
-    NER (sequential) → HyDE + multi-query (parallel fan-out)
-
-When both HyDE and multi-query are enabled, a single LLM instance
-is loaded and shared between them to avoid duplicate memory usage.
+    NER (sequential) → HyDE + multi-query (parallel)
 """
 
 from __future__ import annotations
@@ -35,7 +27,7 @@ class QueryRewritePipeline:
     """Chains enabled query rewriters into a single callable pipeline.
 
     Models are loaded once at construction time and reused across all
-    queries.  If no strategies are enabled, ``rewrite`` returns the
+    queries. If no strategies are enabled, ``rewrite`` returns the
     original query unchanged.
 
     Usage::
@@ -49,21 +41,15 @@ class QueryRewritePipeline:
         self._hyde: HyDEQueryRewriter | None = None
         self._multi_query: MultiQueryRewriter | None = None
 
-        need_hyde = config.hyde
-        need_multi = config.multi_query
-        model = None
-        tokenizer = None
-
-        if need_hyde and need_multi:
+        model, tokenizer = None, None
+        if config.hyde and config.multi_query:
             model, tokenizer = load_query_model()
 
         if config.ner:
             self._ner = NERQueryRewriter()
-
-        if need_hyde:
+        if config.hyde:
             self._hyde = HyDEQueryRewriter(model=model, tokenizer=tokenizer)
-
-        if need_multi:
+        if config.multi_query:
             self._multi_query = MultiQueryRewriter(model=model, tokenizer=tokenizer)
 
         active = [
@@ -75,55 +61,32 @@ class QueryRewritePipeline:
             ]
             if step is not None
         ]
-
         logger.info(
-            "query_pipeline_built",
-            steps=active,
-            shared_llm=need_hyde and need_multi,
+            "query_pipeline_built", steps=active, shared_llm=config.hyde and config.multi_query
         )
 
     def rewrite(self, query: str) -> list[str]:
         """Apply all enabled strategies.
 
-        NER is applied first as a sequential transformation.
-        HyDE and multi-query branch independently from the
-        (possibly NER-enriched) query, and their results are merged.
+        NER is applied first as a sequential transformation. HyDE and
+        multi-query branch independently from the (possibly NER-enriched)
+        query, and their results are merged.
 
         Args:
             query: Raw user question.
 
         Returns:
-            One or more queries for the retriever.
-            Returns ``[query]`` unchanged if no strategies are enabled.
+            One or more queries for the retriever. Returns ``[query]``
+            unchanged if no strategies are enabled.
         """
-        # Sequential: NER enriches the query for downstream steps
-        enriched = query
-        if self._ner:
-            enriched = self._ner.rewrite(query)[0]
-
-        # Parallel: HyDE and multi-query branch from the enriched query
-        queries = [enriched]
-
-        if self._hyde:
-            queries.extend(self._hyde.rewrite(enriched))
-
-        if self._multi_query:
-            queries.extend(self._multi_query.rewrite(enriched))
-
-        # Deduplicate while preserving order
-        queries = list(dict.fromkeys(queries))
-
-        if self._ner or self._hyde or self._multi_query:
-            logger.debug(
-                "query_rewritten",
-                original=query,
-                rewritten=queries,
-            )
-
+        queries, _ = self._rewrite_inner(query)
         return queries
 
     def rewrite_timed(self, query: str) -> tuple[list[str], dict[str, QueryMethodSample]]:
         """Apply all enabled strategies and return per-method cost samples."""
+        return self._rewrite_inner(query)
+
+    def _rewrite_inner(self, query: str) -> tuple[list[str], dict[str, QueryMethodSample]]:
         samples: dict[str, QueryMethodSample] = {}
 
         enriched = query
@@ -133,6 +96,7 @@ class QueryRewritePipeline:
             samples["ner"] = ner_sample
 
         queries = [enriched]
+
         if self._hyde:
             hyde_result, hyde_sample = self._hyde.rewrite_timed(enriched)
             queries.extend(hyde_result)
@@ -146,6 +110,6 @@ class QueryRewritePipeline:
         queries = list(dict.fromkeys(queries))
 
         if samples:
-            logger.debug("query_rewritten_timed", original=query, rewritten=queries)
+            logger.debug("query_rewritten", original=query, rewritten=queries)
 
         return queries, samples
