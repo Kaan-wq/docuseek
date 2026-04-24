@@ -64,7 +64,7 @@ class BM25Retriever:
         """
         results = self._client.query_points(
             collection_name=self._collection_name,
-            query=Document(text=query, model=self._embedder),
+            query=Document(text=query, model="Qdrant/bm25"),
             using="bm25",
             with_payload=True,
             limit=top_k,
