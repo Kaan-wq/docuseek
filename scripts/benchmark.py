@@ -34,6 +34,7 @@ Two k values are evaluated per question:
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import json
 import sys
 from collections import defaultdict
@@ -45,6 +46,7 @@ from rich.console import Console
 from rich.table import Table
 
 from docuseek.eval.benchmark import aggregate, load_gold_set
+from docuseek.eval.latency import LatencySample, RetrievalLatencyStats, aggregate_latency
 from docuseek.eval.retrieval_metrics import compute_all, recall_at_k
 from docuseek.experiment_config import ExperimentConfig
 from docuseek.logging import configure_logging
@@ -93,14 +95,33 @@ def run_benchmark(config: ExperimentConfig) -> dict:
     reranker = get_reranker(config.reranker)
     query = QueryRewritePipeline(config.query)
 
+    # Warm up retriever caches before timing begins
+    for q in questions[:10]:
+        retriever.retrieve(q.question, top_k=max(k_p, k_r))
+
     # ── Per-question scoring ─────────────────────────────────────────────────
     all_scores: list[dict[str, float]] = []
     per_library: dict[str, list[dict[str, float]]] = defaultdict(list)
     per_difficulty: dict[str, list[dict[str, float]]] = defaultdict(list)
+    latency_samples: list[LatencySample] = []
 
     for question in questions:
+        raw_chunks = []
+        question_samples: list[LatencySample] = []
         augmented_questions = query.rewrite(question.question)
-        raw_chunks = [retriever.retrieve(q, top_k=max(k_p, k_r)) for q in augmented_questions]
+
+        for q in augmented_questions:
+            chunks_q, sample = retriever.retrieve_timed(q, top_k=max(k_p, k_r))
+            raw_chunks.append(chunks_q)
+            question_samples.append(sample)
+
+        latency_samples.append(
+            LatencySample(
+                encoding_ms=sum(s.encoding_ms for s in question_samples),
+                search_ms=sum(s.search_ms for s in question_samples),
+            )
+        )
+
         chunks = (
             reciprocal_rank_fusion(raw_chunks, top_k=max(k_p, k_r))
             if len(raw_chunks) > 1
@@ -138,9 +159,10 @@ def run_benchmark(config: ExperimentConfig) -> dict:
     agg = aggregate(all_scores)
     by_library = {lib: aggregate(s) for lib, s in per_library.items()}
     by_difficulty = {diff: aggregate(s) for diff, s in per_difficulty.items()}
+    latency_stats = aggregate_latency(latency_samples)
 
     # ── Display ──────────────────────────────────────────────────────────────
-    _print_results(config.name, agg, by_library, by_difficulty, k_p, k_r)
+    _print_results(config.name, agg, by_library, by_difficulty, latency_stats, k_p, k_r)
 
     # ── Save ─────────────────────────────────────────────────────────────────
     results = {
@@ -152,6 +174,7 @@ def run_benchmark(config: ExperimentConfig) -> dict:
         "aggregate": agg,
         "by_library": by_library,
         "by_difficulty": by_difficulty,
+        "latency": dataclasses.asdict(latency_stats),
     }
     _save_results(results, config)
     return results
@@ -167,6 +190,7 @@ def _print_results(
     agg: dict[str, float],
     by_library: dict[str, dict[str, float]],
     by_difficulty: dict[str, dict[str, float]],
+    latency_stats: RetrievalLatencyStats,
     k_p: int,
     k_r: int,
 ) -> None:
@@ -230,6 +254,26 @@ def _print_results(
             f"{s.get('mrr', 0):.4f}",
         )
     console.print(lib_table)
+
+    # ── Latency ──────────────────────────────────────────────────────────────
+    lat_table = Table(title="Retrieval latency")
+    lat_table.add_column("Component", style="cyan")
+    lat_table.add_column("p50 (ms)", justify="right")
+    lat_table.add_column("p95 (ms)", justify="right")
+    lat_table.add_column("mean (ms)", justify="right")
+
+    for label, stats in [
+        ("encoding", latency_stats.encoding),
+        ("search", latency_stats.search),
+        ("total", latency_stats.total),
+    ]:
+        lat_table.add_row(
+            label,
+            f"{stats.p50_ms:.1f}",
+            f"{stats.p95_ms:.1f}",
+            f"{stats.mean_ms:.1f}",
+        )
+    console.print(lat_table)
 
 
 # ---------------------------------------------------------------------------
