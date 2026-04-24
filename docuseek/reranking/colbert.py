@@ -48,7 +48,10 @@ class ColBERTReranker:
         )
 
         self._tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self._model = AutoModel.from_pretrained(model_name)
+        self._model = AutoModel.from_pretrained(
+            model_name,
+            trust_remote_code=True,
+        )
         self._model.to(self._device)
         self._model.eval()
 
