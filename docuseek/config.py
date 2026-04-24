@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     cross_encoder_model_name: str = "Alibaba-NLP/gte-reranker-modernbert-base"
 
     # ColBERT Reranker
-    colbert_model_name: str = "jinaai/jina-colbert-v2"
+    colbert_model_name: str = "colbert-ir/colbertv2.0"
 
     # GLiNER
     gliner_model_name: str = "urchade/gliner_medium-v2.1"
