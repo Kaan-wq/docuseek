@@ -20,6 +20,8 @@ Reference: Gao et al., "Precise Zero-Shot Dense Retrieval without
 Relevance Labels" (2022).  https://arxiv.org/abs/2212.10496
 """
 
+import time
+
 import structlog
 import torch
 from transformers import (
@@ -27,6 +29,7 @@ from transformers import (
     PreTrainedTokenizerBase,
 )
 
+from docuseek.eval.query_metrics import QueryMethodSample
 from docuseek.query.model import load_query_model
 
 logger = structlog.get_logger(__name__)
@@ -103,3 +106,42 @@ class HyDEQueryRewriter:
         )
 
         return [query, hypothetical_doc]
+
+    @torch.inference_mode()
+    def rewrite_timed(self, query: str) -> tuple[list[str], QueryMethodSample]:
+        """Generate a hypothetical document and return cost metrics."""
+        messages = [
+            {"role": "system", "content": _HYDE_SYSTEM_PROMPT},
+            {"role": "user", "content": query},
+        ]
+        inputs = self._tokenizer.apply_chat_template(
+            messages,
+            return_tensors="pt",
+            add_generation_prompt=True,
+        ).to(self._model.device)
+
+        input_tokens = inputs.shape[-1]
+
+        t0 = time.perf_counter()
+        outputs = self._model.generate(
+            inputs,
+            max_new_tokens=200,
+            temperature=0.7,
+            top_p=0.9,
+            do_sample=True,
+        )
+        latency_ms = (time.perf_counter() - t0) * 1000
+
+        generated_ids = outputs[0, inputs.shape[-1] :]
+        hypothetical_doc = self._tokenizer.decode(generated_ids, skip_special_tokens=True).strip()
+
+        logger.debug("hyde_rewrite", original=query, hypothetical_length=len(hypothetical_doc))
+
+        return [query, hypothetical_doc], QueryMethodSample(
+            method="hyde",
+            latency_ms=latency_ms,
+            input_tokens=input_tokens,
+            output_tokens=len(generated_ids),
+            original=query,
+            variants=(hypothetical_doc,),
+        )

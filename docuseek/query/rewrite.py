@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import structlog
 
+from docuseek.eval.query_metrics import QueryMethodSample
 from docuseek.experiment_config import QueryConfig
 from docuseek.query.hyde import HyDEQueryRewriter
 from docuseek.query.model import load_query_model
@@ -120,3 +121,31 @@ class QueryRewritePipeline:
             )
 
         return queries
+
+    def rewrite_timed(self, query: str) -> tuple[list[str], dict[str, QueryMethodSample]]:
+        """Apply all enabled strategies and return per-method cost samples."""
+        samples: dict[str, QueryMethodSample] = {}
+
+        enriched = query
+        if self._ner:
+            ner_result, ner_sample = self._ner.rewrite_timed(query)
+            enriched = ner_result[0]
+            samples["ner"] = ner_sample
+
+        queries = [enriched]
+        if self._hyde:
+            hyde_result, hyde_sample = self._hyde.rewrite_timed(enriched)
+            queries.extend(hyde_result)
+            samples["hyde"] = hyde_sample
+
+        if self._multi_query:
+            mq_result, mq_sample = self._multi_query.rewrite_timed(enriched)
+            queries.extend(mq_result)
+            samples["multi_query"] = mq_sample
+
+        queries = list(dict.fromkeys(queries))
+
+        if samples:
+            logger.debug("query_rewritten_timed", original=query, rewritten=queries)
+
+        return queries, samples

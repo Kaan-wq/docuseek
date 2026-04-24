@@ -19,6 +19,8 @@ on the output(s) of the previous step.
 
 from typing import Protocol
 
+from docuseek.eval.query_metrics import QueryMethodSample
+
 
 class BaseQueryRewriter(Protocol):
     """Protocol for all query transformation strategies.
@@ -37,5 +39,17 @@ class BaseQueryRewriter(Protocol):
 
         Returns:
             One or more rewritten queries to run against the retriever.
+        """
+        ...
+
+    def rewrite_timed(self, query: str) -> tuple[list[str], QueryMethodSample]:
+        """Transform a query and return a QueryMethodSample with cost metrics.
+
+        Args:
+            query: The original user question.
+
+        Returns:
+            Rewritten queries and a sample carrying latency, token counts,
+            and the variants produced.
         """
         ...

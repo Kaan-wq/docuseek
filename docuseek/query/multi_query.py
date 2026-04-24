@@ -23,6 +23,8 @@ Example::
       ]
 """
 
+import time
+
 import structlog
 import torch
 from transformers import (
@@ -30,6 +32,7 @@ from transformers import (
     PreTrainedTokenizerBase,
 )
 
+from docuseek.eval.query_metrics import QueryMethodSample
 from docuseek.query.model import load_query_model
 
 logger = structlog.get_logger(__name__)
@@ -118,3 +121,51 @@ class MultiQueryRewriter:
         )
 
         return [query, *variants]
+
+    @torch.inference_mode()
+    def rewrite_timed(self, query: str) -> tuple[list[str], QueryMethodSample]:
+        """Generate query variants and return cost metrics."""
+        messages = [
+            {"role": "system", "content": _MULTI_QUERY_SYSTEM_PROMPT},
+            {"role": "user", "content": query},
+        ]
+        inputs = self._tokenizer.apply_chat_template(
+            messages,
+            return_tensors="pt",
+            add_generation_prompt=True,
+        ).to(self._model.device)
+
+        input_tokens = inputs.shape[-1]
+
+        t0 = time.perf_counter()
+        outputs = self._model.generate(
+            inputs,
+            max_new_tokens=150,
+            temperature=0.8,
+            top_p=0.9,
+            do_sample=True,
+        )
+        latency_ms = (time.perf_counter() - t0) * 1000
+
+        generated_ids = outputs[0, inputs.shape[-1] :]
+        raw_output = self._tokenizer.decode(generated_ids, skip_special_tokens=True).strip()
+
+        variants = [line.strip() for line in raw_output.splitlines() if line.strip()][
+            :_NUM_VARIANTS
+        ]
+
+        if not variants:
+            logger.warning("multi_query_empty_output", original=query, raw=raw_output)
+            variants = []
+
+        logger.debug("multi_query_rewrite", original=query, variants=len(variants))
+
+        result = [query, *variants]
+        return result, QueryMethodSample(
+            method="multi_query",
+            latency_ms=latency_ms,
+            input_tokens=input_tokens,
+            output_tokens=len(generated_ids),
+            original=query,
+            variants=tuple(variants),
+        )
