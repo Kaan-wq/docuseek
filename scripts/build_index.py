@@ -31,7 +31,16 @@ from fastembed.sparse.sparse_embedding_base import SparseEmbedding
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, Modifier, PointStruct, SparseVectorParams, VectorParams
 from rich.console import Console
-from rich.progress import track
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    SpinnerColumn,
+    TaskProgressColumn,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+)
 
 from docuseek.chunking.base import Chunk
 from docuseek.chunking.io import chunks_jsonl_path, load_chunks_jsonl
@@ -87,34 +96,52 @@ def build_index(
     all_chunks = load_chunks_jsonl(chunks_jsonl_path(config.chunker.algorithm))
 
     # ── 2. Embed + upsert in batches ──────────────────────────────────────────
-    for i in track(range(0, len(all_chunks), UPSERT_BATCH_SIZE), description="Embedding"):
-        batch = all_chunks[i : i + UPSERT_BATCH_SIZE]
+    progress = Progress(
+        SpinnerColumn(),
+        TextColumn("[bold cyan]{task.description}"),
+        BarColumn(bar_width=32, style="cyan", complete_style="bold cyan"),
+        MofNCompleteColumn(),
+        TaskProgressColumn(),
+        TimeElapsedColumn(),
+        TextColumn("eta"),
+        TimeRemainingColumn(),
+        console=console,
+        expand=False,
+    )
 
-        # ── skip already indexed chunks ───────────
-        batch_ids = [chunk.chunk_id for chunk in batch]
-        existing = client.retrieve(
-            collection_name=collection_name,
-            ids=batch_ids,
-            with_payload=False,
-            with_vectors=False,
-        )
-        existing_ids = {point.id for point in existing}
-        new_chunks = [c for c in batch if str(c.chunk_id) not in existing_ids]
-        if not new_chunks:
-            continue
-        # ──────────────────────────────────────────
+    with progress:
+        task = progress.add_task("Embedding", total=len(all_chunks))
+        for i in range(0, len(all_chunks), UPSERT_BATCH_SIZE):
+            batch = all_chunks[i : i + UPSERT_BATCH_SIZE]
 
-        dense_embeddings = dense_embedder.embed_documents([c.content for c in new_chunks])
-        sparse_embeddings = list(bm25_embedding_model.embed([c.content for c in new_chunks]))
-        # TODO late_interaction_embeddings = late_interaction_embedder.embed_documents([c.content for c in batch])
-        _upsert_batch(
-            client=client,
-            collection_name=collection_name,
-            chunks=new_chunks,
-            dense_vectors=dense_embeddings,
-            sparse_vectors=sparse_embeddings,
-            # TODO late_interaction_vectors=late_interaction_embeddings,
-        )
+            # ── skip already indexed chunks ───────────
+            batch_ids = [chunk.chunk_id for chunk in batch]
+            existing = client.retrieve(
+                collection_name=collection_name,
+                ids=batch_ids,
+                with_payload=False,
+                with_vectors=False,
+            )
+            existing_ids = {point.id for point in existing}
+            new_chunks = [c for c in batch if str(c.chunk_id) not in existing_ids]
+            if not new_chunks:
+                progress.advance(task, len(batch))
+                continue
+            # ──────────────────────────────────────────
+
+            dense_embeddings = dense_embedder.embed_documents([c.content for c in new_chunks])
+            sparse_embeddings = list(bm25_embedding_model.embed([c.content for c in new_chunks]))
+            # TODO late_interaction_embeddings = late_interaction_embedder.embed_documents([c.content for c in batch])
+            _upsert_batch(
+                client=client,
+                collection_name=collection_name,
+                chunks=new_chunks,
+                dense_vectors=dense_embeddings,
+                sparse_vectors=sparse_embeddings,
+                # TODO late_interaction_vectors=late_interaction_embeddings,
+            )
+
+            progress.advance(task, len(batch))
 
     logger.info(
         "index_built",
@@ -218,7 +245,7 @@ def _upsert_batch(
     client.upsert(collection_name=collection_name, points=points)
 
 
-def parse_args() -> argparse.Namespace:
+def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build the DocuSeek Qdrant index.")
     parser.add_argument(
         "--config",
@@ -238,7 +265,7 @@ def parse_args() -> argparse.Namespace:
 
 if __name__ == "__main__":
     configure_logging(log_level="info")
-    args = parse_args()
+    args = _parse_args()
     try:
         config = ExperimentConfig.from_yaml(args.config)
         build_index(config=config, force_rebuild=args.force)
