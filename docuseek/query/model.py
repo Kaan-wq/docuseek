@@ -37,7 +37,8 @@ def load_query_model() -> tuple[PreTrainedModel, PreTrainedTokenizerBase]:
     tokenizer = AutoTokenizer.from_pretrained(settings.query_model_name)
     model = AutoModelForCausalLM.from_pretrained(
         settings.query_model_name,
-        torch_dtype=torch.float16,
+        attn_implementation="flash_attention_2",
+        dtype=torch.float16,
     ).to(device)
     model.eval()
 
