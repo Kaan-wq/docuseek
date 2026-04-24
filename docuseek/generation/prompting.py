@@ -27,8 +27,16 @@ _BASE_SYSTEM_PROMPT = (
 _COT_SUFFIX = "Think step by step before giving your final answer."
 _BUDGET_TEMPLATE = "Answer in {max_tokens} tokens or fewer."
 _FEW_SHOT_EXAMPLES: list[dict[str, str]] = [
-    # Each entry: {"question": ..., "context": ..., "answer": ...}
-    # TODO: populate with 2-3 representative Q/A pairs from the gold set
+    {
+        "question": "What platforms and devices does the Transformers kernel system support, and what is the minimum NVIDIA compute capability required?",
+        "answer": "The kernel system supports four platforms: NVIDIA GPUs via CUDA (requiring compute capability 7.0 or higher, covering Volta, Turing, Ampere, Hopper, and Blackwell architectures), AMD GPUs via ROCm-supported devices, Apple Silicon M-series chips (M1 through M4 and newer) via Metal, and Intel Data Center GPU Max Series and compatible devices via XPU. Precompiled binaries for these platforms are distributed through the Hub's kernels-community organization and detected automatically at runtime.",
+        "context": "| platform | supported devices |\n| :--- | :--- |\n| NVIDIA GPUs (CUDA) | Modern architectures with compute capability 7.0+ (Volta, Turing, Ampere, Hopper, Blackwell) |\n| AMD GPUs (ROCm) | Compatible with ROCm-supported devices |\n| Apple Silicon (Metal) | M-series chips (M1, M2, M3, M4 and newer) |\n| Intel GPUs (XPU) | Intel Data Center GPU Max Series and compatible devices |\n\n[Kernels](https://huggingface.co/docs/kernels/index) solves this by distributing precompiled binaries through the [Hub](https://huggingface.co/kernels-community). It detects your platform at runtime and loads the right binary automatically.",
+    },
+    {
+        "question": "How do you enable Liger Kernel optimizations when training with Transformers?",
+        "answer": "Install the library with `pip install liger-kernel`, then set `use_liger_kernel=True` in `TrainingArguments`. This patches the corresponding model layers with Liger's fused Triton kernels.",
+        "context": "## Liger\n\n[Liger Kernel](https://github.com/linkedin/Liger-Kernel) fuses layers like RMSNorm, RoPE, SwiGLU, CrossEntropy, and FusedLinearCrossEntropy into single Triton kernels. It's compatible with FlashAttention, FSDP, and DeepSpeed.\n\n```bash\npip install liger-kernel\n```\n\nSet `use_liger_kernel=True` in [`TrainingArguments`] to patch the corresponding model layers with Liger's kernels.\n\n```py\nfrom transformers import TrainingArguments\n\ntraining_args = TrainingArguments(\n    ...,\n    use_liger_kernel=True\n)\n```",
+    },
 ]
 
 
@@ -86,7 +94,6 @@ class PromptAssembler:
 
     def _format_context(self, chunks: list[Chunk]) -> str:
         """Format retrieved chunks as a numbered context block."""
-        # Placeholder — numbered excerpts, one per chunk
         lines = [f"[{i}] {chunk.content}" for i, chunk in enumerate(chunks, start=1)]
         return "\n\n".join(lines)
 
