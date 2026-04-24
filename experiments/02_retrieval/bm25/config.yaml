@@ -1,0 +1,25 @@
+# experiments/02_retrieval/bm25/config.yaml
+# ------------------------------------
+# Sparse BM25-only retrieval against the winning chunker from experiment 01.
+# Establishes the keyword-matching baseline before hybrid fusion.
+
+name: 02_retrieval/bm25
+description: >
+  BM25 sparse retrieval with semantic chunking against gold_set_v1.jsonl.
+
+chunker:
+  algorithm: semantic
+  chunk_size: 500
+  context_aware: false
+  threshold: 0.75
+  min_chunk_size: 100
+  window_size: 5
+
+retriever:
+  mode: sparse
+  rrf_k: 60
+
+eval:
+  gold_set_path: data/eval/gold_set_v1.jsonl
+  k_primary: 10
+  k_recall: 100
