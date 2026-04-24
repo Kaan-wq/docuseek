@@ -1,0 +1,173 @@
+{
+  "experiment": "04_query/mq_ner",
+  "description": "Multi-query and NER rewriting over hybrid RRF retrieval with semantic chunking.\n",
+  "timestamp": "2026-04-24T22:49:21.223680+00:00",
+  "config": {
+    "name": "04_query/mq_ner",
+    "description": "Multi-query and NER rewriting over hybrid RRF retrieval with semantic chunking.\n",
+    "chunker": {
+      "algorithm": "semantic",
+      "chunk_size": 500,
+      "chunk_overlap": 50,
+      "context_aware": false,
+      "threshold": 0.75,
+      "min_chunk_size": 100,
+      "window_size": 5
+    },
+    "retriever": {
+      "mode": "hybrid",
+      "rrf_k": 60
+    },
+    "reranker": {
+      "enabled": true,
+      "method": "cross_encoder"
+    },
+    "query": {
+      "ner": true,
+      "hyde": false,
+      "multi_query": true
+    },
+    "generation": {
+      "cot": false,
+      "few_shot": false,
+      "budget_forcing": false
+    },
+    "eval": {
+      "gold_set_path": "data/eval/gold_set_v1.jsonl",
+      "k_primary": 10,
+      "k_recall": 100
+    }
+  },
+  "aggregate": {
+    "recall@10": 0.93,
+    "precision@10": 0.098,
+    "mrr": 0.9011666666666666,
+    "map@10": 0.8656666666666666,
+    "ndcg@10": 0.8893508189323687,
+    "recall@100": 0.975
+  },
+  "by_library": {
+    "accelerate": {
+      "recall@10": 0.9166666666666666,
+      "precision@10": 0.11666666666666668,
+      "mrr": 1.0,
+      "map@10": 0.875,
+      "ndcg@10": 0.9150604180172514,
+      "recall@100": 0.9166666666666666
+    },
+    "transformers": {
+      "recall@10": 0.9262295081967213,
+      "precision@10": 0.09672131147540984,
+      "mrr": 0.8707650273224044,
+      "map@10": 0.8412568306010929,
+      "ndcg@10": 0.8681404179091725,
+      "recall@100": 0.9836065573770492
+    },
+    "peft": {
+      "recall@10": 0.9166666666666666,
+      "precision@10": 0.10000000000000002,
+      "mrr": 0.8333333333333334,
+      "map@10": 0.75,
+      "ndcg@10": 0.8125011166513957,
+      "recall@100": 0.9166666666666666
+    },
+    "datasets": {
+      "recall@10": 1.0,
+      "precision@10": 0.1,
+      "mrr": 1.0,
+      "map@10": 1.0,
+      "ndcg@10": 1.0,
+      "recall@100": 1.0
+    },
+    "diffusers": {
+      "recall@10": 0.9166666666666666,
+      "precision@10": 0.09444444444444446,
+      "mrr": 0.9444444444444444,
+      "map@10": 0.9166666666666666,
+      "ndcg@10": 0.9229526218203034,
+      "recall@100": 0.9722222222222222
+    }
+  },
+  "by_difficulty": {
+    "easy": {
+      "recall@10": 1.0,
+      "precision@10": 0.1,
+      "mrr": 0.9318181818181818,
+      "map@10": 0.9318181818181818,
+      "ndcg@10": 0.9473290759740277,
+      "recall@100": 1.0
+    },
+    "medium": {
+      "recall@10": 0.9545454545454546,
+      "precision@10": 0.1,
+      "mrr": 0.88989898989899,
+      "map@10": 0.8671717171717171,
+      "ndcg@10": 0.8937964245329996,
+      "recall@100": 1.0
+    },
+    "hard": {
+      "recall@10": 0.8382352941176471,
+      "precision@10": 0.09411764705882353,
+      "mrr": 0.8823529411764706,
+      "map@10": 0.7999999999999999,
+      "ndcg@10": 0.8287629522501458,
+      "recall@100": 0.9264705882352942
+    }
+  },
+  "latency": {
+    "encoding": {
+      "mean_ms": 180.50577421989146,
+      "p50_ms": 180.5558399992151,
+      "p95_ms": 189.9668340001881,
+      "n": 100
+    },
+    "search": {
+      "mean_ms": 2694.9873572398246,
+      "p50_ms": 2723.2047420002345,
+      "p95_ms": 2783.1211489983616,
+      "n": 100
+    },
+    "total": {
+      "mean_ms": 2875.493131459716,
+      "p50_ms": 2906.584623001436,
+      "p95_ms": 2971.6769699989527,
+      "n": 100
+    }
+  },
+  "reranker_latency": {
+    "mean_ms": 5926.616089570007,
+    "p50_ms": 5017.6057549997495,
+    "p95_ms": 12334.658485000546,
+    "n": 100
+  },
+  "query_rewriting": {
+    "ner": {
+      "method": "ner",
+      "latency": {
+        "mean_ms": 232.22696244997678,
+        "p50_ms": 222.9721089997838,
+        "p95_ms": 291.7520760001935,
+        "n": 100
+      },
+      "mean_input_tokens": 26.54,
+      "mean_output_tokens": 2.59,
+      "mean_n_variants": 0.95,
+      "mean_diversity": 0.22909827689658394,
+      "n": 100
+    },
+    "multi_query": {
+      "method": "multi_query",
+      "latency": {
+        "mean_ms": 4911.701305410024,
+        "p50_ms": 4722.501635000299,
+        "p95_ms": 6994.779171999653,
+        "n": 100
+      },
+      "mean_input_tokens": 130.68,
+      "mean_output_tokens": 105.92,
+      "mean_n_variants": 2.96,
+      "mean_diversity": 0.7674207198236764,
+      "n": 100
+    }
+  }
+}
