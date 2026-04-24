@@ -1,10 +1,10 @@
-# experiments/04_query/multi_query/config.yaml
+# experiments/04_query/ner/config.yaml
 # ------------------------------------
-# Multi-query rewriting.
+# NER rewriting.
 
-name: 04_query/multi_query
+name: 04_query/ner
 description: >
-  Multi-query rewriting over hybrid RRF retrieval with semantic chunking.
+  NER rewriting over hybrid RRF retrieval with semantic chunking.
 
 chunker:
   algorithm: semantic
@@ -23,7 +23,7 @@ reranker:
   method: cross_encoder
 
 query:
-  multi_query: true
+  ner: true
 
 eval:
   gold_set_path: data/eval/gold_set_v1.jsonl
