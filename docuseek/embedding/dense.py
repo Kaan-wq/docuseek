@@ -39,7 +39,7 @@ class DenseEmbedder(BaseEmbedder):
         self,
         model_name: str = settings.dense_embd_model_name,
         instruction: str = _DEFAULT_INSTRUCTION,
-        batch_size: int = 128,
+        batch_size: int = 32,
     ) -> None:
         """
         Args:
