@@ -1,0 +1,32 @@
+# experiments/04_query/mq_ner/config.yaml
+# ------------------------------------
+# Multi-query + NER rewriting.
+
+name: 04_query/mq_ner
+description: >
+  Multi-query and NER rewriting over hybrid RRF retrieval with semantic chunking.
+
+chunker:
+  algorithm: semantic
+  chunk_size: 500
+  context_aware: false
+  threshold: 0.75
+  min_chunk_size: 100
+  window_size: 5
+
+retriever:
+  mode: hybrid
+  rrf_k: 60
+
+reranker:
+  enabled: true
+  method: cross_encoder
+
+query:
+  multi_query: true
+  ner: true
+
+eval:
+  gold_set_path: data/eval/gold_set_v1.jsonl
+  k_primary: 10
+  k_recall: 100
