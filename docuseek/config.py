@@ -36,7 +36,7 @@ class Settings(BaseSettings):
 
     # Dense Embedding
     dense_embd_model_name: str = "microsoft/harrier-oss-v1-270m"
-    dense_embd_dim: int = 1024
+    dense_embd_dim: int = 640
 
     # Late Interaction Embedding
     late_interaction_embd_model_name: str = "jinaai/jina-colbert-v2"
