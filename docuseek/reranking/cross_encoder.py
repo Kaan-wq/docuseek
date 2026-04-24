@@ -2,13 +2,6 @@
 docuseek/reranking/cross_encoder.py
 ------------------------------------
 Cross-encoder reranker — highest accuracy, slowest.
-
-Unlike bi-encoders which encode query and document independently,
-a cross-encoder takes the (query, document) pair as a single input
-and outputs a relevance score directly.  This makes it the most
-accurate reranking approach but only feasible on a small candidate set.
-
-Model: cross-encoder/ms-marco-MiniLM-L6-v2
 """
 
 import time
@@ -64,8 +57,7 @@ class CrossEncoderReranker:
     def rerank_timed(
         self, query: str, chunks: list[Chunk], top_k: int = 10
     ) -> tuple[list[Chunk], float]:
-        """Rerank chunks and return forward pass latency in milliseconds."""
-
+        """Rerank chunks and return wall-clock latency in milliseconds."""
         t0 = time.perf_counter()
         result = self.rerank(query, chunks, top_k)
         return result, (time.perf_counter() - t0) * 1000

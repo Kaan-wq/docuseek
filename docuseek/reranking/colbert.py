@@ -2,17 +2,6 @@
 docuseek/reranking/colbert.py
 ------------------------------
 ColBERT reranker using late-interaction (MaxSim) scoring.
-
-Encodes query and documents into per-token vectors, then scores via
-MaxSim: for each query token, find the max cosine similarity across
-all document tokens, then sum.  This gives finer-grained matching
-than a single dense vector, at the cost of encoding every candidate
-at query time.
-
-Model: jinaai/jina-colbert-v2
-
-This is a reranker (stage 2), not a retrieval component.  It scores
-a small candidate set (50-100 chunks from stage 1), not the full index.
 """
 
 import time
@@ -32,13 +21,9 @@ _MAX_LENGTH = 512
 
 
 class ColBERTReranker:
-    """Rerank chunks using ColBERT-style MaxSim scoring."""
+    """Reranks chunks using ColBERT-style MaxSim scoring."""
 
-    def __init__(
-        self,
-        model_name: str,
-        device: str | None = None,
-    ) -> None:
+    def __init__(self, model_name: str, device: str | None = None) -> None:
         self._device = device or (
             "cuda"
             if torch.cuda.is_available()
@@ -68,14 +53,9 @@ class ColBERTReranker:
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Encode texts into per-token embeddings with a role marker.
 
-        Args:
-            texts:  Raw strings to encode.
-            marker: ``[QueryMarker]`` or ``[DocumentMarker]`` to prepend.
-
         Returns:
-            Tuple of (embeddings, attention_mask):
-                embeddings:     (batch, seq_len, dim) with padding zeroed out.
-                attention_mask: (batch, seq_len) for reference.
+            ``(embeddings, attention_mask)`` where embeddings is
+            ``(batch, seq_len, dim)`` with padding positions zeroed out.
         """
         prefixed = [f"{marker} {text}" for text in texts]
 
@@ -90,7 +70,6 @@ class ColBERTReranker:
         outputs = self._model(**inputs)
         token_embeddings = outputs.last_hidden_state  # (batch, seq_len, dim)
 
-        # Zero out padding tokens so they don't contribute to MaxSim
         mask = inputs["attention_mask"].unsqueeze(-1)  # (batch, seq_len, 1)
         token_embeddings = token_embeddings * mask
 
@@ -103,15 +82,9 @@ class ColBERTReranker:
     ) -> float:
         """Compute MaxSim between one query and one document.
 
-        For each query token, find the max cosine similarity across all
-        document tokens, then sum.
-
-        Args:
-            query_vectors: Shape (query_len, dim).
-            doc_vectors:   Shape (doc_len, dim).
-
-        Returns:
-            Scalar MaxSim score (higher = more relevant).
+        For each query token, find the max cosine similarity across all document
+        tokens, then sum. ``query_vectors`` is ``(query_len, dim)``,
+        ``doc_vectors`` is ``(doc_len, dim)``.
         """
         q = normalize(query_vectors, dim=-1)
         d = normalize(doc_vectors, dim=-1)
@@ -133,20 +106,16 @@ class ColBERTReranker:
         if not chunks or len(chunks) <= top_k:
             return chunks
 
-        # Encode query — single string, squeeze batch dim
         query_emb, _ = self._encode_tokens([query], _QUERY_MARKER)
         query_emb = query_emb.squeeze(0)  # (query_len, dim)
 
-        # Encode all documents in one batch
         doc_embs, doc_masks = self._encode_tokens(
             [c.content for c in chunks],
             _DOC_MARKER,
         )
 
-        # Score each chunk
         scores: list[float] = []
         for i in range(len(chunks)):
-            # Trim to actual (non-padding) tokens for this document
             mask_len = doc_masks[i].sum().item()
             doc_emb = doc_embs[i, :mask_len]  # (actual_len, dim)
             scores.append(self._maxsim_score(query_emb, doc_emb))
@@ -170,7 +139,7 @@ class ColBERTReranker:
     def rerank_timed(
         self, query: str, chunks: list[Chunk], top_k: int = 10
     ) -> tuple[list[Chunk], float]:
-        """Rerank chunks and return forward pass latency in milliseconds."""
+        """Rerank chunks and return wall-clock latency in milliseconds."""
         t0 = time.perf_counter()
         result = self.rerank(query, chunks, top_k)
         if self._device == "cuda":
