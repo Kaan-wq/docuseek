@@ -44,16 +44,15 @@ from pathlib import Path
 import structlog
 from rich.console import Console
 from rich.progress import track
-from rich.table import Table
 
 from docuseek.eval.benchmark import aggregate, load_gold_set
+from docuseek.eval.display import print_results
 from docuseek.eval.latency import (
     LatencySample,
-    LatencyStats,
-    RetrievalLatencyStats,
     aggregate_latency,
     compute_latency_stats,
 )
+from docuseek.eval.query_metrics import QueryMethodSample, aggregate_query_metrics
 from docuseek.eval.retrieval_metrics import compute_all, recall_at_k
 from docuseek.experiment_config import ExperimentConfig
 from docuseek.logging import configure_logging
@@ -107,6 +106,7 @@ def run_benchmark(config: ExperimentConfig) -> dict:
         warmup_chunks = retriever.retrieve(q.question, top_k=max(k_p, k_r))
         if reranker:
             reranker.rerank(q.question, warmup_chunks, top_k=k_p)
+        query.rewrite(q.question)
 
     # ── Per-question scoring ─────────────────────────────────────────────────
     all_scores: list[dict[str, float]] = []
@@ -114,11 +114,15 @@ def run_benchmark(config: ExperimentConfig) -> dict:
     per_difficulty: dict[str, list[dict[str, float]]] = defaultdict(list)
     latency_samples: list[LatencySample] = []
     reranker_ms_samples: list[float] = []
+    query_samples_by_method: dict[str, list[QueryMethodSample]] = defaultdict(list)
 
     for question in track(questions, description="Benchmarking"):
         raw_chunks = []
         question_samples: list[LatencySample] = []
-        augmented_questions = query.rewrite(question.question)
+        augmented_questions, method_samples = query.rewrite_timed(question.question)
+
+        for method, sample in method_samples.items():
+            query_samples_by_method[method].append(sample)
 
         for q in augmented_questions:
             chunks_q, sample = retriever.retrieve_timed(q, top_k=max(k_p, k_r))
@@ -172,15 +176,20 @@ def run_benchmark(config: ExperimentConfig) -> dict:
     by_difficulty = {diff: aggregate(s) for diff, s in per_difficulty.items()}
     latency_stats = aggregate_latency(latency_samples)
     reranker_stats = compute_latency_stats(reranker_ms_samples) if reranker else None
+    query_stats = {
+        method: aggregate_query_metrics(samples)
+        for method, samples in query_samples_by_method.items()
+    }
 
     # ── Display ──────────────────────────────────────────────────────────────
-    _print_results(
+    print_results(
         experiment_name=config.name,
         agg=agg,
         by_library=by_library,
         by_difficulty=by_difficulty,
         latency_stats=latency_stats,
         reranker_stats=reranker_stats,
+        query_stats=query_stats,
         k_p=k_p,
         k_r=k_r,
     )
@@ -197,121 +206,12 @@ def run_benchmark(config: ExperimentConfig) -> dict:
         "by_difficulty": by_difficulty,
         "latency": dataclasses.asdict(latency_stats),
         "reranker_latency": dataclasses.asdict(reranker_stats) if reranker_stats else None,
+        "query_rewriting": {
+            method: dataclasses.asdict(stats) for method, stats in query_stats.items()
+        },
     }
     _save_results(results, config)
     return results
-
-
-# ---------------------------------------------------------------------------
-# Display
-# ---------------------------------------------------------------------------
-
-
-def _print_results(
-    experiment_name: str,
-    agg: dict[str, float],
-    by_library: dict[str, dict[str, float]],
-    by_difficulty: dict[str, dict[str, float]],
-    latency_stats: RetrievalLatencyStats,
-    reranker_stats: LatencyStats | None,
-    k_p: int,
-    k_r: int,
-) -> None:
-    """Print a Rich summary of benchmark results to stdout."""
-
-    # ── Aggregate ────────────────────────────────────────────────────────────
-    agg_table = Table(title=f"[bold]{experiment_name}[/bold] — aggregate metrics")
-    agg_table.add_column("Metric", style="cyan")
-    agg_table.add_column("Score", justify="right", style="bold white")
-
-    # Print headline metric first, then the rest in a consistent order
-    ordered_keys = [
-        f"ndcg@{k_p}",
-        f"recall@{k_r}",
-        "mrr",
-        f"map@{k_p}",
-        f"precision@{k_p}",
-        # Fallback: any remaining keys not listed above
-        *[
-            k
-            for k in agg
-            if k not in {f"ndcg@{k_p}", f"recall@{k_r}", "mrr", f"map@{k_p}", f"precision@{k_p}"}
-        ],
-    ]
-    for key in ordered_keys:
-        if key in agg:
-            agg_table.add_row(key, f"{agg[key]:.4f}")
-    console.print(agg_table)
-
-    # ── By difficulty ────────────────────────────────────────────────────────
-    diff_table = Table(title="Breakdown by difficulty")
-    diff_table.add_column("Difficulty", style="cyan")
-    diff_table.add_column(f"ndcg@{k_p}", justify="right")
-    diff_table.add_column(f"recall@{k_r}", justify="right")
-    diff_table.add_column("mrr", justify="right")
-
-    for diff in ("easy", "medium", "hard"):
-        if diff in by_difficulty:
-            s = by_difficulty[diff]
-            diff_table.add_row(
-                diff,
-                f"{s.get(f'ndcg@{k_p}', 0):.4f}",
-                f"{s.get(f'recall@{k_r}', 0):.4f}",
-                f"{s.get('mrr', 0):.4f}",
-            )
-    console.print(diff_table)
-
-    # ── By library ───────────────────────────────────────────────────────────
-    lib_table = Table(title="Breakdown by library")
-    lib_table.add_column("Library", style="cyan")
-    lib_table.add_column(f"ndcg@{k_p}", justify="right")
-    lib_table.add_column(f"recall@{k_r}", justify="right")
-    lib_table.add_column("mrr", justify="right")
-
-    for lib in sorted(by_library):
-        s = by_library[lib]
-        lib_table.add_row(
-            lib,
-            f"{s.get(f'ndcg@{k_p}', 0):.4f}",
-            f"{s.get(f'recall@{k_r}', 0):.4f}",
-            f"{s.get('mrr', 0):.4f}",
-        )
-    console.print(lib_table)
-
-    # ── Retrieval Latency ────────────────────────────────────────────────────
-    lat_table = Table(title="Retrieval latency")
-    lat_table.add_column("Component", style="cyan")
-    lat_table.add_column("p50 (ms)", justify="right")
-    lat_table.add_column("p95 (ms)", justify="right")
-    lat_table.add_column("mean (ms)", justify="right")
-
-    for label, stats in [
-        ("encoding", latency_stats.encoding),
-        ("search", latency_stats.search),
-        ("total", latency_stats.total),
-    ]:
-        lat_table.add_row(
-            label,
-            f"{stats.p50_ms:.1f}",
-            f"{stats.p95_ms:.1f}",
-            f"{stats.mean_ms:.1f}",
-        )
-    console.print(lat_table)
-
-    # ── Reranker Latency ─────────────────────────────────────────────────────
-    if reranker_stats:
-        rer_table = Table(title="Reranker latency")
-        rer_table.add_column("Component", style="cyan")
-        rer_table.add_column("p50 (ms)", justify="right")
-        rer_table.add_column("p95 (ms)", justify="right")
-        rer_table.add_column("mean (ms)", justify="right")
-        rer_table.add_row(
-            "reranker",
-            f"{reranker_stats.p50_ms:.1f}",
-            f"{reranker_stats.p95_ms:.1f}",
-            f"{reranker_stats.mean_ms:.1f}",
-        )
-        console.print(rer_table)
 
 
 # ---------------------------------------------------------------------------
