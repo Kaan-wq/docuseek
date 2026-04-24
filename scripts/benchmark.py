@@ -43,6 +43,7 @@ from pathlib import Path
 
 import structlog
 from rich.console import Console
+from rich.progress import track
 from rich.table import Table
 
 from docuseek.eval.benchmark import aggregate, load_gold_set
@@ -102,7 +103,7 @@ def run_benchmark(config: ExperimentConfig) -> dict:
     query = QueryRewritePipeline(config.query)
 
     # Warm up caches before timing begins
-    for q in questions[:5]:
+    for q in track(questions[:10], description="Warming up caches"):
         warmup_chunks = retriever.retrieve(q.question, top_k=max(k_p, k_r))
         if reranker:
             reranker.rerank(q.question, warmup_chunks, top_k=k_p)
@@ -114,7 +115,7 @@ def run_benchmark(config: ExperimentConfig) -> dict:
     latency_samples: list[LatencySample] = []
     reranker_ms_samples: list[float] = []
 
-    for question in questions:
+    for question in track(questions, description="Benchmarking"):
         raw_chunks = []
         question_samples: list[LatencySample] = []
         augmented_questions = query.rewrite(question.question)
