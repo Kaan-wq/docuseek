@@ -15,14 +15,7 @@ from docuseek.eval.latency import LatencySample
 
 
 class DenseRetriever:
-    """
-    Retrieves chunks using dense vector search via Qdrant.
-
-    Attributes:
-        _client:          Connected QdrantClient instance.
-        _collection_name: Qdrant collection to query.
-        _embedder:        DenseEmbedder dense embedding model for query encoding.
-    """
+    """Retrieves chunks using dense vector search via Qdrant."""
 
     def __init__(
         self,
@@ -36,6 +29,7 @@ class DenseRetriever:
         """
         self._embedder = embedder
         self._collection_name = collection_name
+
         if settings.qdrant_cluster_endpoint:
             self._client = QdrantClient(
                 url=settings.qdrant_cluster_endpoint,
@@ -46,28 +40,20 @@ class DenseRetriever:
 
     def retrieve(self, query: str, top_k: int = settings.retrieval_top_k) -> list[Chunk]:
         """
-        Embed the query and return the top_k most similar chunks from Qdrant.
+        Embed the query and return the top-k most similar chunks.
+
+        Latency is measured internally but discarded. Use ``retrieve_timed``
+        when per-component timing is needed.
 
         Args:
             query: Raw query string from the user.
             top_k: Number of chunks to return.
 
         Returns:
-            List of Chunk objects ordered by descending similarity score.
+            Chunks ordered by descending similarity score.
         """
-        query_embd = self._embedder.embed_query(query)
-        results = self._client.query_points(
-            collection_name=self._collection_name,
-            query=query_embd,
-            using=settings.dense_embd_model_name,
-            with_payload=True,
-            limit=top_k,
-        )
-
-        return [
-            Chunk(**{k: v for k, v in result.payload.items() if k != "chunk_id"})
-            for result in results.points
-        ]
+        chunks, _ = self._retrieve_inner(query, top_k)
+        return chunks
 
     def retrieve_timed(
         self, query: str, top_k: int = settings.retrieval_top_k
@@ -80,9 +66,13 @@ class DenseRetriever:
             top_k: Number of chunks to return.
 
         Returns:
-            Chunks matching ``retrieve``, plus a ``LatencySample`` with
-            encoding_ms and search_ms measured independently.
+            A ``(chunks, latency)`` tuple. ``latency`` breaks down wall-clock time
+            into ``encoding_ms`` (query embedding) and ``search_ms``
+            (Qdrant round-trip), measured independently.
         """
+        return self._retrieve_inner(query, top_k)
+
+    def _retrieve_inner(self, query: str, top_k: int) -> tuple[list[Chunk], LatencySample]:
         t0 = time.perf_counter()
         query_embd = self._embedder.embed_query(query)
         encoding_ms = (time.perf_counter() - t0) * 1000
@@ -101,4 +91,5 @@ class DenseRetriever:
             Chunk(**{k: v for k, v in result.payload.items() if k != "chunk_id"})
             for result in results.points
         ]
+
         return chunks, LatencySample(encoding_ms=encoding_ms, search_ms=search_ms)
