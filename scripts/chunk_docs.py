@@ -112,7 +112,7 @@ def chunk_docs(config: ExperimentConfig, force: bool = False) -> None:
             root = e
             while root.__cause__ or root.__context__:
                 root = root.__cause__ or root.__context__
-            logger.error("chunking_failed", doc_url=doc.url, error=str(root).splitlines()[0])
+            logger.error("chunking_failed", doc_url=doc.url, error=str(root).splitlines()[0])  # noqa: TRY400
             continue
 
     logger.info(
