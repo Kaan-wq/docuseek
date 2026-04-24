@@ -10,7 +10,6 @@ description: >
 chunker:
   algorithm: semantic
   chunk_size: 500
-  chunk_overlap: 50
   context_aware: false
   threshold: 0.75
   min_chunk_size: 100
