@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     late_interaction_embd_dim: int = 64
 
     # Cross-Encoder Reranker
-    cross_encoder_model_name: str = "cross-encoder/ms-marco-MiniLM-L6-v2"
+    cross_encoder_model_name: str = "Alibaba-NLP/gte-reranker-modernbert-base"
 
     # ColBERT Reranker
     colbert_model_name: str = "jinaai/jina-colbert-v2"
