@@ -46,7 +46,13 @@ from rich.console import Console
 from rich.table import Table
 
 from docuseek.eval.benchmark import aggregate, load_gold_set
-from docuseek.eval.latency import LatencySample, RetrievalLatencyStats, aggregate_latency
+from docuseek.eval.latency import (
+    LatencySample,
+    LatencyStats,
+    RetrievalLatencyStats,
+    aggregate_latency,
+    compute_latency_stats,
+)
 from docuseek.eval.retrieval_metrics import compute_all, recall_at_k
 from docuseek.experiment_config import ExperimentConfig
 from docuseek.logging import configure_logging
@@ -95,15 +101,18 @@ def run_benchmark(config: ExperimentConfig) -> dict:
     reranker = get_reranker(config.reranker)
     query = QueryRewritePipeline(config.query)
 
-    # Warm up retriever caches before timing begins
-    for q in questions[:10]:
-        retriever.retrieve(q.question, top_k=max(k_p, k_r))
+    # Warm up caches before timing begins
+    for q in questions[:5]:
+        warmup_chunks = retriever.retrieve(q.question, top_k=max(k_p, k_r))
+        if reranker:
+            reranker.rerank(q.question, warmup_chunks, top_k=k_p)
 
     # ── Per-question scoring ─────────────────────────────────────────────────
     all_scores: list[dict[str, float]] = []
     per_library: dict[str, list[dict[str, float]]] = defaultdict(list)
     per_difficulty: dict[str, list[dict[str, float]]] = defaultdict(list)
     latency_samples: list[LatencySample] = []
+    reranker_ms_samples: list[float] = []
 
     for question in questions:
         raw_chunks = []
@@ -133,7 +142,8 @@ def run_benchmark(config: ExperimentConfig) -> dict:
         retrieved_urls = list(dict.fromkeys(chunk.doc_url for chunk in chunks))
 
         if reranker:
-            reranked_chunks = reranker.rerank(question.question, chunks, top_k=k_p)
+            reranked_chunks, rerank_ms = reranker.rerank_timed(question.question, chunks, top_k=k_p)
+            reranker_ms_samples.append(rerank_ms)
             final_urls = list(dict.fromkeys(chunk.doc_url for chunk in reranked_chunks))
         else:
             final_urls = retrieved_urls
@@ -160,9 +170,19 @@ def run_benchmark(config: ExperimentConfig) -> dict:
     by_library = {lib: aggregate(s) for lib, s in per_library.items()}
     by_difficulty = {diff: aggregate(s) for diff, s in per_difficulty.items()}
     latency_stats = aggregate_latency(latency_samples)
+    reranker_stats = compute_latency_stats(reranker_ms_samples) if reranker else None
 
     # ── Display ──────────────────────────────────────────────────────────────
-    _print_results(config.name, agg, by_library, by_difficulty, latency_stats, k_p, k_r)
+    _print_results(
+        experiment_name=config.name,
+        agg=agg,
+        by_library=by_library,
+        by_difficulty=by_difficulty,
+        latency_stats=latency_stats,
+        reranker_stats=reranker_stats,
+        k_p=k_p,
+        k_r=k_r,
+    )
 
     # ── Save ─────────────────────────────────────────────────────────────────
     results = {
@@ -175,6 +195,7 @@ def run_benchmark(config: ExperimentConfig) -> dict:
         "by_library": by_library,
         "by_difficulty": by_difficulty,
         "latency": dataclasses.asdict(latency_stats),
+        "reranker_latency": dataclasses.asdict(reranker_stats) if reranker_stats else None,
     }
     _save_results(results, config)
     return results
@@ -191,6 +212,7 @@ def _print_results(
     by_library: dict[str, dict[str, float]],
     by_difficulty: dict[str, dict[str, float]],
     latency_stats: RetrievalLatencyStats,
+    reranker_stats: LatencyStats | None,
     k_p: int,
     k_r: int,
 ) -> None:
@@ -255,7 +277,7 @@ def _print_results(
         )
     console.print(lib_table)
 
-    # ── Latency ──────────────────────────────────────────────────────────────
+    # ── Retrieval Latency ────────────────────────────────────────────────────
     lat_table = Table(title="Retrieval latency")
     lat_table.add_column("Component", style="cyan")
     lat_table.add_column("p50 (ms)", justify="right")
@@ -274,6 +296,21 @@ def _print_results(
             f"{stats.mean_ms:.1f}",
         )
     console.print(lat_table)
+
+    # ── Reranker Latency ─────────────────────────────────────────────────────
+    if reranker_stats:
+        rer_table = Table(title="Reranker latency")
+        rer_table.add_column("Component", style="cyan")
+        rer_table.add_column("p50 (ms)", justify="right")
+        rer_table.add_column("p95 (ms)", justify="right")
+        rer_table.add_column("mean (ms)", justify="right")
+        rer_table.add_row(
+            "reranker",
+            f"{reranker_stats.p50_ms:.1f}",
+            f"{reranker_stats.p95_ms:.1f}",
+            f"{reranker_stats.mean_ms:.1f}",
+        )
+        console.print(rer_table)
 
 
 # ---------------------------------------------------------------------------

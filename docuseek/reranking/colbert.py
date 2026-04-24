@@ -15,6 +15,8 @@ This is a reranker (stage 2), not a retrieval component.  It scores
 a small candidate set (50-100 chunks from stage 1), not the full index.
 """
 
+import time
+
 import structlog
 import torch
 from torch.nn.functional import normalize
@@ -157,3 +159,14 @@ class ColBERTReranker:
         )
 
         return [chunk for chunk, _ in scored_chunks[:top_k]]
+
+    @torch.inference_mode()
+    def rerank_timed(
+        self, query: str, chunks: list[Chunk], top_k: int = 10
+    ) -> tuple[list[Chunk], float]:
+        """Rerank chunks and return forward pass latency in milliseconds."""
+        t0 = time.perf_counter()
+        result = self.rerank(query, chunks, top_k)
+        if self._device == "cuda":
+            torch.cuda.synchronize()
+        return result, (time.perf_counter() - t0) * 1000

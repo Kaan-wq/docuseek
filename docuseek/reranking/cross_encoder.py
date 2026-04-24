@@ -11,6 +11,8 @@ accurate reranking approach but only feasible on a small candidate set.
 Model: cross-encoder/ms-marco-MiniLM-L6-v2
 """
 
+import time
+
 import structlog
 from sentence_transformers import CrossEncoder
 
@@ -58,3 +60,12 @@ class CrossEncoderReranker:
         )
 
         return [chunk for chunk, _ in scored_chunks[:top_k]]
+
+    def rerank_timed(
+        self, query: str, chunks: list[Chunk], top_k: int = 10
+    ) -> tuple[list[Chunk], float]:
+        """Rerank chunks and return forward pass latency in milliseconds."""
+
+        t0 = time.perf_counter()
+        result = self.rerank(query, chunks, top_k)
+        return result, (time.perf_counter() - t0) * 1000

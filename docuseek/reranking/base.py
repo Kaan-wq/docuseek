@@ -33,3 +33,20 @@ class BaseReranker(Protocol):
             reranker score.
         """
         ...
+
+    def rerank_timed(
+        self, query: str, chunks: list[Chunk], top_k: int = 10
+    ) -> tuple[list[Chunk], float]:
+        """
+        Rerank chunks and return wall-clock reranker latency in milliseconds.
+
+        Args:
+            query:  Raw query string from the user.
+            chunks: Candidate chunks from first-stage retrieval.
+            top_k:  Number of chunks to return after reranking.
+
+        Returns:
+            A tuple of (chunks, rerank_ms) where chunks matches ``rerank``
+            and rerank_ms is the total forward pass time in milliseconds.
+        """
+        ...
