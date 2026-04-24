@@ -1,0 +1,138 @@
+{
+  "experiment": "02_retrieval/bm25",
+  "description": "BM25 sparse retrieval with semantic chunking against gold_set_v1.jsonl.\n",
+  "timestamp": "2026-04-24T13:08:02.094115+00:00",
+  "config": {
+    "name": "02_retrieval/bm25",
+    "description": "BM25 sparse retrieval with semantic chunking against gold_set_v1.jsonl.\n",
+    "chunker": {
+      "algorithm": "semantic",
+      "chunk_size": 500,
+      "chunk_overlap": 50,
+      "context_aware": false,
+      "threshold": 0.75,
+      "min_chunk_size": 100,
+      "window_size": 5
+    },
+    "retriever": {
+      "mode": "sparse",
+      "rrf_k": 60
+    },
+    "reranker": {
+      "enabled": false,
+      "method": "colbert"
+    },
+    "query": {
+      "ner": false,
+      "hyde": false,
+      "multi_query": false
+    },
+    "generation": {
+      "cot": false,
+      "few_shot": false,
+      "budget_forcing": false
+    },
+    "eval": {
+      "gold_set_path": "data/eval/gold_set_v1.jsonl",
+      "k_primary": 10,
+      "k_recall": 100
+    }
+  },
+  "aggregate": {
+    "recall@10": 0.92,
+    "precision@10": 0.09600000000000002,
+    "mrr": 0.8341150978564772,
+    "map@10": 0.79875,
+    "ndcg@10": 0.8368890615732409,
+    "recall@100": 0.965
+  },
+  "by_library": {
+    "accelerate": {
+      "recall@10": 0.8333333333333334,
+      "precision@10": 0.10000000000000002,
+      "mrr": 0.9166666666666666,
+      "map@10": 0.75,
+      "ndcg@10": 0.8095373565170624,
+      "recall@100": 0.8333333333333334
+    },
+    "transformers": {
+      "recall@10": 0.9016393442622951,
+      "precision@10": 0.09344262295081968,
+      "mrr": 0.8175384117865746,
+      "map@10": 0.7882513661202186,
+      "ndcg@10": 0.8230428587207991,
+      "recall@100": 0.9754098360655737
+    },
+    "peft": {
+      "recall@10": 0.9166666666666666,
+      "precision@10": 0.10000000000000002,
+      "mrr": 0.7777777777777778,
+      "map@10": 0.7361111111111112,
+      "ndcg@10": 0.790509999057094,
+      "recall@100": 0.9166666666666666
+    },
+    "datasets": {
+      "recall@10": 1.0,
+      "precision@10": 0.1,
+      "mrr": 0.7638888888888888,
+      "map@10": 0.7638888888888888,
+      "ndcg@10": 0.8196745764922866,
+      "recall@100": 1.0
+    },
+    "diffusers": {
+      "recall@10": 0.9722222222222222,
+      "precision@10": 0.1,
+      "mrr": 0.9166666666666666,
+      "map@10": 0.8888888888888888,
+      "ndcg@10": 0.9169964696377684,
+      "recall@100": 0.9722222222222222
+    }
+  },
+  "by_difficulty": {
+    "easy": {
+      "recall@10": 0.9696969696969697,
+      "precision@10": 0.09696969696969697,
+      "mrr": 0.8532828282828283,
+      "map@10": 0.8522727272727273,
+      "ndcg@10": 0.8807412522608523,
+      "recall@100": 1.0
+    },
+    "medium": {
+      "recall@10": 0.9696969696969697,
+      "precision@10": 0.1,
+      "mrr": 0.8308080808080809,
+      "map@10": 0.8106060606060606,
+      "ndcg@10": 0.855074560281664,
+      "recall@100": 0.9848484848484849
+    },
+    "hard": {
+      "recall@10": 0.8235294117647058,
+      "precision@10": 0.0911764705882353,
+      "mrr": 0.8187208760484622,
+      "map@10": 0.7352941176470589,
+      "ndcg@10": 0.7766760101006194,
+      "recall@100": 0.9117647058823529
+    }
+  },
+  "latency": {
+    "encoding": {
+      "mean_ms": 0.16220363000115867,
+      "p50_ms": 0.14967700008128304,
+      "p95_ms": 0.24547200007418724,
+      "n": 100
+    },
+    "search": {
+      "mean_ms": 118.12929452000049,
+      "p50_ms": 117.7978539999458,
+      "p95_ms": 120.92364000000089,
+      "n": 100
+    },
+    "total": {
+      "mean_ms": 118.29149815000164,
+      "p50_ms": 117.95966299996508,
+      "p95_ms": 121.1544989999993,
+      "n": 100
+    }
+  },
+  "reranker_latency": null
+}
