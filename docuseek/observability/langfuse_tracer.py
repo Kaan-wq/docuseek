@@ -35,6 +35,7 @@ class QuestionTrace:
         question: str,
         library: str,
         difficulty: str,
+        source_urls: list[str],
         enabled: bool,
     ) -> None:
         self._enabled = enabled
@@ -48,7 +49,7 @@ class QuestionTrace:
             self._trace_cm = client.start_as_current_observation(
                 name=experiment_name,
                 input={"question": question},
-                metadata={"library": library, "difficulty": difficulty},
+                metadata={"library": library, "difficulty": difficulty, "source_urls": source_urls},
             )
             self._span = self._trace_cm.__enter__()
         except Exception as e:
