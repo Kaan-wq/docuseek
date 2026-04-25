@@ -151,13 +151,20 @@ class LangfuseTracer:
         except Exception as e:
             logger.warning("langfuse_unavailable", error=str(e))
 
-    def start(self, question: str, library: str, difficulty: str) -> QuestionTrace:
+    def start(
+        self,
+        question: str,
+        library: str,
+        difficulty: str,
+        source_urls: list[str],
+    ) -> QuestionTrace:
         return QuestionTrace(
             client=self._client,
             experiment_name=self._experiment_name,
             question=question,
             library=library,
             difficulty=difficulty,
+            source_urls=source_urls,
             enabled=self._enabled,
         )
 
