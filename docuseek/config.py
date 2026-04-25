@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     mistral_api_key: str
     mistral_model: str = "mistral-small-latest"
 
+    # Local Generation Model
+    local_generation_model_name: str = "microsoft/Phi-4-mini-instruct"
+
     # Gemini
     gemini_api_key: str
     gemini_model: str = "gemini-2.5-flash"
