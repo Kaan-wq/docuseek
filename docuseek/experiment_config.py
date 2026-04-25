@@ -118,6 +118,7 @@ class GenerationConfig(BaseModel):
     cot: bool = False
     few_shot: bool = False
     budget_forcing: bool = False
+    max_tokens: int = 256
 
 
 class EvalConfig(BaseModel):
