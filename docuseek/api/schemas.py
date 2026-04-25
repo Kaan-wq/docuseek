@@ -4,6 +4,8 @@ docuseek/api/schemas.py
 Pydantic request/response schemas for the FastAPI endpoints.
 """
 
+from __future__ import annotations
+
 from pydantic import BaseModel, Field
 
 
@@ -20,9 +22,19 @@ class SourceInfo(BaseModel):
 class QueryResponse(BaseModel):
     answer: str
     sources: list[SourceInfo]
+    latency_ms: float
+    query_variants: list[str] | None = None
 
 
-class HealthResponse(BaseModel):
-    status: str
+class HealthLiveResponse(BaseModel):
+    status: str  # always "ok"
+
+
+class HealthReadyResponse(BaseModel):
+    status: str  # "ok" or "degraded"
     qdrant: bool
-    langfuse: bool
+    experiment: str
+
+
+class ErrorResponse(BaseModel):
+    detail: str
