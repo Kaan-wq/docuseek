@@ -8,46 +8,24 @@ from mistralai import Mistral
 
 from docuseek.chunking.base import Chunk
 from docuseek.config import settings
-
-_SYSTEM_PROMPT = """\
-You are a precise technical assistant specialising in ML framework documentation.
-Answer the user's question using only the provided context passages.
-If the answer is not present in the context, say so explicitly — do not speculate.
-When referencing specific information, mention the source title it came from.\
-"""
-
-
-def _format_context(chunks: list[Chunk]) -> str:
-    """
-    Format retrieved chunks into a numbered context block for the prompt.
-
-    Each passage includes its index, source title, content, and URL so
-    the model can ground its answer and attribute claims to sources.
-    The numbered format is intentional — Week 4 will use these indices
-    for inline citation generation without changing this structure.
-
-    Args:
-        chunks: Retrieved chunks ordered by relevance.
-
-    Returns:
-        Formatted multi-line string ready for inclusion in the prompt.
-    """
-    passages = []
-    for i, chunk in enumerate(chunks, start=1):
-        passages.append(
-            f"[{i}] {chunk.doc_title}\n{chunk.content}\nSource: {chunk.doc_url}\nLibrary: {chunk.source}"
-        )
-    return "## Context\n\n" + "\n\n---\n\n".join(passages)
+from docuseek.experiment_config import GenerationConfig
+from docuseek.generation.prompting import PromptAssembler
 
 
 class MistralGenerator:
-    def __init__(self, model: str = settings.mistral_model) -> None:
+    def __init__(
+        self,
+        model: str = settings.mistral_model,
+        assembler: PromptAssembler | None = None,
+    ) -> None:
         """
         Args:
-            model: Mistral model identifier. Defaults to settings.mistral_model.
+            model:     Mistral model identifier. Defaults to settings.mistral_model.
+            assembler: Prompt assembler (CoT, Few-Shot, Budget-Forcing).
         """
         self._client = Mistral(api_key=settings.mistral_api_key)
         self._model = model
+        self._assembler = assembler or PromptAssembler(GenerationConfig())
 
     def generate(self, query: str, chunks: list[Chunk]) -> str:
         """
@@ -63,10 +41,6 @@ class MistralGenerator:
         Returns:
             Generated answer string.
         """
-        context = _format_context(chunks)
-        messages = [
-            {"role": "system", "content": _SYSTEM_PROMPT},
-            {"role": "user", "content": f"{context}\n\n## Query\n\n{query}"},
-        ]
+        messages = self._assembler.build(query, chunks)
         response = self._client.chat.complete(model=self._model, messages=messages)
         return response.choices[0].message.content
