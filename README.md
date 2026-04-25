@@ -65,10 +65,10 @@ Every component is defined by a Protocol/ABC in its `base.py`. Factories (`get_c
 | Vector store | Qdrant (local Docker) |
 | Dense embedding | `microsoft/harrier-oss-v1-270m` (dim 640) |
 | Sparse embedding | `Qdrant/bm25` (FastEmbed BM25) |
-| Reranker (ColBERT) | `jinaai/jina-colbert-v2` |
+| Reranker (ColBERT) | `colbert-ir/colbertv2.0` |
 | Reranker (cross-encoder) | `Alibaba-NLP/gte-reranker-modernbert-base` |
 | NER | `urchade/gliner_medium-v2.1` (GLiNER) |
-| Query model | `microsoft/Phi-4-mini-instruct` |
+| Query model | `Qwen/Qwen2.5-1.5B-Instruct` |
 | Generator | `mistral-small-latest` (Mistral API) |
 | Observability | Langfuse Cloud |
 | API | FastAPI + uvicorn |
