@@ -196,6 +196,7 @@ def run_benchmark(config: ExperimentConfig) -> dict:  # noqa: PLR0915
                 k=k_p,
             )
             qt.log_scores(scores)
+            qt.finish()
 
             # Recall at k_recall (only metric that needs the wider candidate pool)
             scores[f"recall@{k_r}"] = recall_at_k(
