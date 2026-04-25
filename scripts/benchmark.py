@@ -65,6 +65,7 @@ from docuseek.eval.query_metrics import QueryMethodSample, aggregate_query_metri
 from docuseek.eval.retrieval_metrics import compute_all, recall_at_k
 from docuseek.experiment_config import ExperimentConfig
 from docuseek.logging import configure_logging
+from docuseek.observability.langfuse_tracer import LangfuseTracer
 from docuseek.query.rewrite import QueryRewritePipeline
 from docuseek.reranking.factory import get_reranker
 from docuseek.reranking.rrf import reciprocal_rank_fusion
@@ -79,7 +80,7 @@ console = Console()
 # ---------------------------------------------------------------------------
 
 
-def run_benchmark(config: ExperimentConfig) -> dict:
+def run_benchmark(config: ExperimentConfig) -> dict:  # noqa: PLR0915
     """Run the full retrieval benchmark for a given experiment config.
 
     Loops over every question in the gold set, retrieves chunks, deduplicates
@@ -109,6 +110,8 @@ def run_benchmark(config: ExperimentConfig) -> dict:
     retriever = get_retriever(config.retriever)
     reranker = get_reranker(config.reranker)
     query = QueryRewritePipeline(config.query)
+    # generator = MistralGenerator(assembler=PromptAssembler(config.generation)) # TODO generation
+    tracer = LangfuseTracer(experiment_name=config.name)
 
     # ── Per-question scoring ─────────────────────────────────────────────────
     all_scores: list[dict[str, float]] = []
@@ -134,9 +137,17 @@ def run_benchmark(config: ExperimentConfig) -> dict:
     with progress:
         task = progress.add_task("Benchmarking", total=len(questions))
         for question in questions:
+            qt = tracer.start(question.question, question.library, question.difficulty)
+
             raw_chunks = []
             question_samples: list[LatencySample] = []
             augmented_questions, method_samples = query.rewrite_timed(question.question)
+
+            qt.log_query_rewrite(
+                original=question.question,
+                variants=augmented_questions,
+                ms=sum(s.latency_ms for s in method_samples.values()),
+            )
 
             for method, sample in method_samples.items():
                 query_samples_by_method[method].append(sample)
@@ -158,6 +169,7 @@ def run_benchmark(config: ExperimentConfig) -> dict:
                 if len(raw_chunks) > 1
                 else raw_chunks[0]
             )
+            qt.log_retrieval(chunks=chunks, ms=sum(s.search_ms for s in question_samples))
 
             # Deduplicate to doc-level preserving rank order.
             # Chunks from same URL count as one hit at rank of first chunk.
@@ -167,10 +179,15 @@ def run_benchmark(config: ExperimentConfig) -> dict:
                 reranked_chunks, rerank_ms = reranker.rerank_timed(
                     question.question, chunks, top_k=k_p
                 )
+                qt.log_reranking(chunks=reranked_chunks, ms=rerank_ms)
                 reranker_ms_samples.append(rerank_ms)
                 final_urls = list(dict.fromkeys(chunk.doc_url for chunk in reranked_chunks))
+                # chunks = reranked_chunks # TODO generation
             else:
                 final_urls = retrieved_urls
+
+            # answer = generator.generate(question.question, chunks) # TODO generation
+            # qt.log_generation(answer=answer) # TODO generation
 
             # Primary metrics at k_primary
             scores = compute_all(
@@ -178,6 +195,8 @@ def run_benchmark(config: ExperimentConfig) -> dict:
                 gold_urls=question.source_urls,
                 k=k_p,
             )
+            qt.log_scores(scores)
+
             # Recall at k_recall (only metric that needs the wider candidate pool)
             scores[f"recall@{k_r}"] = recall_at_k(
                 retrieved_urls=retrieved_urls,
@@ -190,6 +209,7 @@ def run_benchmark(config: ExperimentConfig) -> dict:
             per_difficulty[question.difficulty].append(scores)
 
             progress.advance(task)
+    tracer.flush()
 
     # ── Aggregate ────────────────────────────────────────────────────────────
     agg = aggregate(all_scores)
