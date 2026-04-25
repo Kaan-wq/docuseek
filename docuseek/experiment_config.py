@@ -112,9 +112,11 @@ class GenerationConfig(BaseModel):
 
     All flags are independent and composable — ``cot`` and ``few_shot`` can
     both be enabled simultaneously (few-shot CoT is a standard technique).
-    The generator model is fixed in ``config.py``.
+    The generator models are fixed in ``config.py``.
     """
 
+    generate_answers: bool = False
+    backend: Literal["mistral", "local"] = "local"
     cot: bool = False
     few_shot: bool = False
     budget_forcing: bool = False
