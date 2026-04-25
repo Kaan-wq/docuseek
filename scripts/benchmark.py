@@ -137,7 +137,12 @@ def run_benchmark(config: ExperimentConfig) -> dict:  # noqa: PLR0915
     with progress:
         task = progress.add_task("Benchmarking", total=len(questions))
         for question in questions:
-            qt = tracer.start(question.question, question.library, question.difficulty)
+            qt = tracer.start(
+                question.question,
+                question.library,
+                question.difficulty,
+                question.source_urls,
+            )
 
             raw_chunks = []
             question_samples: list[LatencySample] = []
