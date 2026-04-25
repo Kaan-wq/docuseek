@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     gliner_model_name: str = "urchade/gliner_medium-v2.1"
 
     # HyDE + MultiQuery
-    query_model_name: str = "microsoft/Phi-4-mini-instruct"
+    query_model_name: str = "Qwen/Qwen2.5-1.5B-Instruct"
 
     # Retrieval
     retrieval_top_k: int = 15
