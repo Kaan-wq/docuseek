@@ -55,8 +55,8 @@ class QuestionTrace:
                 output={"variants": variants, "n_variants": len(variants)},
                 metadata={"latency_ms": ms},
             )
-        except Exception:
-            logger.warning("langfuse_span_failed", span="query_rewrite")
+        except Exception as e:
+            logger.warning("langfuse_span_failed", span="query_rewrite", error=str(e))
 
     def log_retrieval(
         self,
@@ -74,8 +74,8 @@ class QuestionTrace:
                 },
                 metadata={"latency_ms": ms},
             )
-        except Exception:
-            logger.warning("langfuse_span_failed", span="retrieval")
+        except Exception as e:
+            logger.warning("langfuse_span_failed", span="retrieval", error=str(e))
 
     def log_reranking(
         self,
@@ -93,8 +93,8 @@ class QuestionTrace:
                 },
                 metadata={"latency_ms": ms},
             )
-        except Exception:
-            logger.warning("langfuse_span_failed", span="reranking")
+        except Exception as e:
+            logger.warning("langfuse_span_failed", span="reranking", error=str(e))
 
     def log_generation(self, answer: str) -> None:
         if not self._enabled:
@@ -104,8 +104,8 @@ class QuestionTrace:
                 name="generation",
                 output={"answer": answer},
             )
-        except Exception:
-            logger.warning("langfuse_span_failed", span="generation")
+        except Exception as e:
+            logger.warning("langfuse_span_failed", span="generation", error=str(e))
 
     def log_scores(self, scores: dict[str, float]) -> None:
         """Attach retrieval metrics as numeric scores on the trace."""
@@ -114,8 +114,8 @@ class QuestionTrace:
         for name, value in scores.items():
             try:
                 self._trace.score(name=name, value=value)
-            except Exception:
-                logger.warning("langfuse_score_failed", metric=name)
+            except Exception as e:
+                logger.warning("langfuse_score_failed", metric=name, error=str(e))
 
 
 class LangfuseTracer:
@@ -138,8 +138,10 @@ class LangfuseTracer:
             )
             self._enabled = True
             logger.info("langfuse_connected", host=settings.langfuse_host)
-        except Exception:
-            logger.warning("langfuse_unavailable", reason="init failed — tracing disabled")
+        except Exception as e:
+            logger.warning(
+                "langfuse_unavailable", reason="init failed — tracing disabled", error=str(e)
+            )
 
     def start(
         self,
@@ -169,9 +171,9 @@ class LangfuseTracer:
                 metadata={"library": library, "difficulty": difficulty},
             )
             return QuestionTrace(trace=trace, enabled=True)
-        except Exception:
+        except Exception as e:
             logger.warning("langfuse_trace_failed", question=question[:60])
-            return QuestionTrace(trace=None, enabled=False)
+            return QuestionTrace(trace=None, enabled=False, error=str(e))
 
     def flush(self) -> None:
         """Flush all pending traces to Langfuse Cloud. Call once after the loop."""
@@ -180,5 +182,5 @@ class LangfuseTracer:
         try:
             self._client.flush()
             logger.info("langfuse_flushed")
-        except Exception:
-            logger.warning("langfuse_flush_failed")
+        except Exception as e:
+            logger.warning("langfuse_flush_failed", error=str(e))
