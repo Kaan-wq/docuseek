@@ -30,8 +30,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from docuseek.api.routes import health, query
 from docuseek.experiment_config import ExperimentConfig
-from docuseek.generation.mistral_api import MistralGenerator
-from docuseek.generation.prompting import PromptAssembler
+from docuseek.generation.factory import get_generator
 from docuseek.logging import configure_logging
 from docuseek.observability.langfuse_tracer import LangfuseTracer
 from docuseek.query.rewrite import QueryRewritePipeline
@@ -65,7 +64,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.retriever = get_retriever(config.retriever)
     app.state.reranker = get_reranker(config.reranker)
     app.state.query = QueryRewritePipeline(config.query)
-    app.state.generator = MistralGenerator(assembler=PromptAssembler(config.generation))
+    app.state.generator = get_generator(config.generation)
     app.state.tracer = LangfuseTracer(experiment_name=config.name)
 
     logger.info(

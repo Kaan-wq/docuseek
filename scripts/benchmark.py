@@ -64,6 +64,7 @@ from docuseek.eval.latency import (
 from docuseek.eval.query_metrics import QueryMethodSample, aggregate_query_metrics
 from docuseek.eval.retrieval_metrics import compute_all, recall_at_k
 from docuseek.experiment_config import ExperimentConfig
+from docuseek.generation.factory import get_generator
 from docuseek.logging import configure_logging
 from docuseek.observability.langfuse_tracer import LangfuseTracer
 from docuseek.query.rewrite import QueryRewritePipeline
@@ -110,7 +111,7 @@ def run_benchmark(config: ExperimentConfig) -> dict:  # noqa: PLR0915
     retriever = get_retriever(config.retriever)
     reranker = get_reranker(config.reranker)
     query = QueryRewritePipeline(config.query)
-    # generator = MistralGenerator(assembler=PromptAssembler(config.generation)) # TODO generation
+    generator = get_generator(config.generation)
     tracer = LangfuseTracer(experiment_name=config.name)
 
     # ── Per-question scoring ─────────────────────────────────────────────────
@@ -187,12 +188,13 @@ def run_benchmark(config: ExperimentConfig) -> dict:  # noqa: PLR0915
                 qt.log_reranking(chunks=reranked_chunks, ms=rerank_ms)
                 reranker_ms_samples.append(rerank_ms)
                 final_urls = list(dict.fromkeys(chunk.doc_url for chunk in reranked_chunks))
-                # chunks = reranked_chunks # TODO generation
+                chunks = reranked_chunks
             else:
                 final_urls = retrieved_urls
 
-            # answer = generator.generate(question.question, chunks) # TODO generation
-            # qt.log_generation(answer=answer) # TODO generation
+            if generator:
+                answer = generator.generate(question.question, chunks)
+                qt.log_generation(answer=answer)
 
             # Primary metrics at k_primary
             scores = compute_all(
@@ -277,8 +279,8 @@ def _save_results(results: dict, config: ExperimentConfig) -> None:
                  archived config.
         config:  The experiment config for this run.
     """
-    # Derive output directory from the experiment name — matches the
-    # convention that config.yaml lives at experiments/{name}/config.yaml
+    # Derive output directory from the experiment name
+    # config.yaml lives at experiments/{name}/config.yaml
     output_dir = Path("experiments") / config.name
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / "results.json"
