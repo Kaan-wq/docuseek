@@ -1,7 +1,7 @@
 {
   "experiment": "03_reranking/colbert",
   "description": "ColBERT reranking over hybrid RRF retrieval with semantic chunking. Measures NDCG@10 gain and reranker latency cost against the no-reranker baseline.\n",
-  "timestamp": "2026-04-24T15:30:17.659635+00:00",
+  "timestamp": "2026-04-25T12:41:23.037914+00:00",
   "config": {
     "name": "03_reranking/colbert",
     "description": "ColBERT reranking over hybrid RRF retrieval with semantic chunking. Measures NDCG@10 gain and reranker latency cost against the no-reranker baseline.\n",
@@ -30,7 +30,8 @@
     "generation": {
       "cot": false,
       "few_shot": false,
-      "budget_forcing": false
+      "budget_forcing": false,
+      "max_tokens": 256
     },
     "eval": {
       "gold_set_path": "data/eval/gold_set_v1.jsonl",
@@ -116,28 +117,29 @@
   },
   "latency": {
     "encoding": {
-      "mean_ms": 41.46831628011569,
-      "p50_ms": 40.73694799990335,
-      "p95_ms": 46.73997200006852,
+      "mean_ms": 44.192840410005374,
+      "p50_ms": 40.99043900009747,
+      "p95_ms": 43.50075600018499,
       "n": 100
     },
     "search": {
-      "mean_ms": 724.1168224099374,
-      "p50_ms": 679.290852000122,
-      "p95_ms": 781.5643159997308,
+      "mean_ms": 743.4378779999747,
+      "p50_ms": 749.9893860001521,
+      "p95_ms": 791.9318749998183,
       "n": 100
     },
     "total": {
-      "mean_ms": 765.5851386900531,
-      "p50_ms": 729.2665659992963,
-      "p95_ms": 824.1353109997362,
+      "mean_ms": 787.6307184099801,
+      "p50_ms": 792.6922490000834,
+      "p95_ms": 833.2191859999512,
       "n": 100
     }
   },
   "reranker_latency": {
-    "mean_ms": 3365.0459256799923,
-    "p50_ms": 3445.539669000027,
-    "p95_ms": 3532.57746700001,
+    "mean_ms": 2968.3103064800184,
+    "p50_ms": 3030.1481690000855,
+    "p95_ms": 3115.1570310000807,
     "n": 100
-  }
+  },
+  "query_rewriting": {}
 }
