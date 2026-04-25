@@ -172,8 +172,8 @@ class LangfuseTracer:
             )
             return QuestionTrace(trace=trace, enabled=True)
         except Exception as e:
-            logger.warning("langfuse_trace_failed", question=question[:60])
-            return QuestionTrace(trace=None, enabled=False, error=str(e))
+            logger.warning("langfuse_trace_failed", question=question[:60], error=str(e))
+            return QuestionTrace(trace=None, enabled=False)
 
     def flush(self) -> None:
         """Flush all pending traces to Langfuse Cloud. Call once after the loop."""
