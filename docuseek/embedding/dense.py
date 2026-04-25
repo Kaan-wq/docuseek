@@ -17,10 +17,13 @@ to benchmark different retrieval tasks without changing this class.
 """
 
 import numpy as np
+import structlog
 from sentence_transformers import SentenceTransformer
 
 from docuseek.config import settings
 from docuseek.embedding.base import BaseEmbedder
+
+logger = structlog.get_logger(__name__)
 
 _DEFAULT_INSTRUCTION = "Retrieve semantically similar text"
 
@@ -50,6 +53,8 @@ class DenseEmbedder(BaseEmbedder):
         self._instruction = instruction
         self._batch_size = batch_size
 
+        logger.info("dense_embedder loaded", model_name=model_name)
+
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         """
         Encode document chunks with no instruction prefix.
@@ -78,6 +83,7 @@ class DenseEmbedder(BaseEmbedder):
         Returns:
             List of float vectors, one per input query.
         """
+        logger.debug("embed_queries", n_queries=len(queries))
         prefixed = [f"Instruct: {self._instruction}\nQuery: {q}" for q in queries]
         vectors: np.ndarray = self._model.encode(
             prefixed,
