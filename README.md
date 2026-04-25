@@ -27,7 +27,7 @@ This project requires a CUDA-capable GPU. It will not run on CPU. The query rewr
 | **Retrieval** | Dense-only, BM25-only, hybrid RRF | Surprisingly, BM25 outperforms with clean eval. Hybrid preferred for production when users have messy inputs. |
 | **Reranking** | ColBERT (MaxSim), cross-encoder | Cross-encoders can be very fast depending on size and they significantly outperform late interaction models. |
 | **Query augmentation** | NER (GLiNER), HyDE, multi-query | These methods are very time-consuming and advantages are marginal. Could still be interesting for messy inputs. |
-| **Generation** | Mistral API, CoT, few-shot, budget-forcing | Not tested yet. |
+| **Generation** | Mistral API, CoT, few-shot, budget-forcing | Not tested yet (API cost). |
 | **Evaluation** | NDCG@10, Recall@100, MRR, MAP@10, Precision@10 | Evaluation is doc-level (URL-deduplicated), not chunk-level |
 | **Observability** | Langfuse Cloud | Full trace visibility: query → variants → retrieved docs → reranked docs → answer |
 
@@ -40,21 +40,19 @@ Late interaction embeddings (ColBERT-style, PLAID index) and Matryoshka quantiza
 ```
 ┌─────────────────────────────────────────────────────────┐
 │  Ingestion pipeline                                     │
-│  Raw docs → Chunker → Embedder → Qdrant (dense+sparse) │
+│  Raw docs → Chunker → Embedder → Qdrant (dense+sparse)  │
 └─────────────────────────────────────────────────────────┘
                           │
 ┌─────────────────────────▼───────────────────────────────┐
 │  Query pipeline                                         │
-│  Query → [Rewrite] → Retrieve → [RRF] → [Rerank] → LLM │
+│  Query → [Rewrite] → Retrieve → [RRF] → [Rerank] → LLM  │
 └─────────────────────────────────────────────────────────┘
                           │
 ┌─────────────────────────▼───────────────────────────────┐
 │  Observability & evaluation                             │
-│  Langfuse tracing · NDCG@10 · Recall@100 · benchmark   │
+│  Langfuse tracing · NDCG@10 · Recall@100 · benchmark    │
 └─────────────────────────────────────────────────────────┘
 ```
-
-Every component is defined by a Protocol/ABC in its `base.py`. Factories (`get_chunker`, `get_retriever`, `get_reranker`) take a typed config object and return the built component. Experiments are configured via YAML and validated by `ExperimentConfig`.
 
 ---
 
@@ -62,14 +60,14 @@ Every component is defined by a Protocol/ABC in its `base.py`. Factories (`get_c
 
 | Component | Choice |
 |---|---|
-| Vector store | Qdrant (local Docker) |
+| Vector store | Qdrant (local Docker or Cloud cluster) |
 | Dense embedding | `microsoft/harrier-oss-v1-270m` (dim 640) |
-| Sparse embedding | `Qdrant/bm25` (FastEmbed BM25) |
+| Sparse embedding | `Qdrant/bm25` |
 | Reranker (ColBERT) | `colbert-ir/colbertv2.0` |
 | Reranker (cross-encoder) | `Alibaba-NLP/gte-reranker-modernbert-base` |
 | NER | `urchade/gliner_medium-v2.1` (GLiNER) |
 | Query model | `Qwen/Qwen2.5-1.5B-Instruct` |
-| Generator | `mistral-small-latest` (Mistral API) |
+| Generator | `microsoft/Phi-4-mini-instruct` |
 | Observability | Langfuse Cloud |
 | API | FastAPI + uvicorn |
 | Frontend | Streamlit |
@@ -82,7 +80,6 @@ Every component is defined by a Protocol/ABC in its `base.py`. Factories (`get_c
 
 | # | Name | Status | Primary metric |
 |---|---|---|---|
-| 00 | Baseline (fixed + dense) | ✅ done | NDCG@10 |
 | 01 | Chunking strategies | ✅ done | NDCG@10 |
 | 02 | Retrieval modes | ✅ done | NDCG@10 |
 | 03 | Reranking | ✅ done | NDCG@10 |
@@ -117,23 +114,74 @@ frontend/               # Streamlit app (requires GPU)
 
 ---
 
+## Prerequisites
+
+Copy `.env.example` to `.env` and fill in the following secrets:
+
+| Secret | Purpose | Where to get it |
+|---|---|---|
+| `HF_TOKEN` | Model downloads + faster HF download rates | [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) |
+| `GITHUB_TOKEN` | GitHub API access for doc ingestion (scraping) | [github.com/settings/tokens](https://github.com/settings/tokens) |
+| `QDRANT_API_KEY` + `QDRANT_CLUSTER_ENDPOINT` | Vector store (if using Cloud) | [cloud.qdrant.io](https://cloud.qdrant.io) |
+| `LANGFUSE_HOST` + `LANGFUSE_PUBLIC_KEY` + `LANGFUSE_SECRET_KEY` | Tracing | [cloud.langfuse.com](https://cloud.langfuse.com) |
+| `MISTRAL_API_KEY` | Secondary generator (Mistral API backend) | [console.mistral.ai](https://console.mistral.ai) |
+| `GEMINI_API_KEY` | Agentic chunker (deferred) | [aistudio.google.com](https://aistudio.google.com) |
+
+> **Qdrant:** a local Docker instance (`docker compose up -d`) is supported for development. For GPU notebooks (Kaggle, Colab) a [Qdrant Cloud](https://cloud.qdrant.io) free-tier cluster is recommended — set `QDRANT_API_KEY` and `QDRANT_CLUSTER_ENDPOINT` accordingly.
+
+---
+
+## Running on Kaggle (recommended)
+
+All experiments were run on Kaggle GPU notebooks (T4 / P100). Add each secret from the table above via *Add-ons → Secrets* in the Kaggle sidebar, then run:
+
+```python
+from kaggle_secrets import UserSecretsClient
+import os
+
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
+user_secrets = UserSecretsClient()
+for key in [
+    "GITHUB_TOKEN", "HF_TOKEN",
+    "LANGFUSE_HOST", "LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY",
+    "MISTRAL_API_KEY", "GEMINI_API_KEY",
+    "QDRANT_API_KEY", "QDRANT_CLUSTER_ENDPOINT",
+]:
+    os.environ[key] = user_secrets.get_secret(key)
+
+!git clone https://github.com/Kaan-wq/docuseek.git -q
+%cd docuseek
+!pip install uv -q
+!uv sync --all-groups -q
+```
+
+Then follow the benchmark steps below.
+
+---
+
 ## Running the benchmark
 
 ```bash
-# 1. Start Qdrant
+# 1. (Local only) Start Qdrant — skip if using a Cloud cluster endpoint
 docker compose up -d
 
-# 2. Ingest and chunk (GPU environment)
+# 2. Ingest raw documentation
 uv run python scripts/ingest.py
+
+# 3. Chunk cleaned documentation
 uv run python scripts/chunk_docs.py --config experiments/04_query/none/config.yaml
 
-# 3. Build the index
+# 4. Build the index
 uv run python scripts/build_index.py --config experiments/04_query/none/config.yaml
 
-# 4. Run the benchmark
+# 5. Run the benchmark
 uv run python scripts/benchmark.py --config experiments/04_query/none/config.yaml
 ```
 Results are written to `experiments/04_query/none/results.json`.
+
+---
 
 ## Running the API (GPU only)
 
@@ -144,27 +192,14 @@ uv run streamlit run frontend/app.py
 
 ---
 
-## Design decisions
-
-**Chunk IDs** are deterministic UUIDs from MD5 of content — enables idempotent Qdrant upserts and skip-on-reindex.
-
-**Embedding asymmetry** — documents encoded as-is, queries prefixed with MTEB-style `Instruct: {instruction}\nQuery: {q}`. Required for Harrier.
-
-**Two-stage retrieval** — BM25 + dense hybrid via RRF to top 50–100 candidates, then ColBERT or cross-encoder reranker to top 10–15.
-
-**Doc-level evaluation** — retrieved chunk URLs are deduplicated before metric computation. Multiple chunks from the same page count as one hit. Standard for RAG (consistent with BEIR).
-
-**Generation eval deferred** — RAGAS and LLM-as-judge both require API calls per question. Given the project's budget constraints and the fact that retrieval quality is the higher-leverage variable, generation evaluation is stubbed for future work.
-
----
-
 ## Deferred / future work
 
-- Matryoshka embeddings at reduced dimensions (experiment 06)
+- Matryoshka embeddings at reduced dimensions
 - Late interaction retrieval with PLAID index
 - Generation evaluation (RAGAS / LLM judge) once budget allows
 - PyTorch and vLLM documentation scrapers
 - Context-aware chunking
+- Tests
 - CI/CD pipeline (`ci.yml` scaffolded)
 
 ---
