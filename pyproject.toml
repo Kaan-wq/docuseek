@@ -24,7 +24,6 @@ dependencies = [
     "transformers>=4.46",
     "torch>=2.5",
     "ragatouille>=0.0.9",
-    "mistralai>=1.2",
     "openai>=1.57",
     "ragas>=0.2",
     "datasets>=3.1",
@@ -39,6 +38,7 @@ dependencies = [
     "langchain-experimental>=0.4.1",
     "einops>=0.8.2",
     "better-exceptions>=0.3.3",
+    "mistralai>=1.5.1,<2.0.0",
 ]
 
 [dependency-groups]
