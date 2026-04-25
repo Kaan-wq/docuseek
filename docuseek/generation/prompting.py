@@ -16,12 +16,12 @@ from docuseek.experiment_config import GenerationConfig
 
 Message = dict[str, str]
 
-_BASE_SYSTEM_PROMPT = (
-    "You are a helpful assistant specialising in ML framework documentation "
-    "(HuggingFace, PyTorch, PEFT, etc.). Answer the user's question using "
-    "only the provided documentation excerpts. If the answer is not in the "
-    "excerpts, say so."
-)
+_BASE_SYSTEM_PROMPT = """\
+You are a precise technical assistant specialising in ML framework documentation.
+Answer the user's question using only the provided context passages.
+If the answer is not present in the context, say so explicitly — do not speculate.
+When referencing specific information, mention the source title it came from.\
+"""
 
 
 _COT_SUFFIX = "Think step by step before giving your final answer."
@@ -62,21 +62,14 @@ class PromptAssembler:
         Returns:
             OpenAI-style messages list ready to pass to the generator.
         """
-        system = self._build_system()
         user = self._build_user(query, chunks)
         messages: list[Message] = []
-
+        messages.append({"role": "system", "content": _BASE_SYSTEM_PROMPT})
         if self._config.few_shot:
             messages.extend(self._few_shot_messages())
-
-        messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": user})
 
         return messages
-
-    def _build_system(self) -> str:
-        """Return the system prompt, unmodified for now."""
-        return _BASE_SYSTEM_PROMPT
 
     def _build_user(self, query: str, chunks: list[Chunk]) -> str:
         """Assemble the user turn: context block + query + optional suffixes."""
@@ -94,8 +87,11 @@ class PromptAssembler:
 
     def _format_context(self, chunks: list[Chunk]) -> str:
         """Format retrieved chunks as a numbered context block."""
-        lines = [f"[{i}] {chunk.content}" for i, chunk in enumerate(chunks, start=1)]
-        return "\n\n".join(lines)
+        lines = [
+            f"[{i}] {chunk.doc_title}\n{chunk.content}\nSource: {chunk.doc_url}\nLibrary: {chunk.source}"
+            for i, chunk in enumerate(chunks, start=1)
+        ]
+        return "## Context\n\n" + "\n\n---\n\n".join(lines)
 
     def _few_shot_messages(self) -> list[Message]:
         """Return few-shot Q/A pairs as alternating user/assistant messages."""
